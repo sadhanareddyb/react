@@ -1603,6 +1603,12 @@ function recomputeCurrentRendererTime() {
   currentRendererTime = msToExpirationTime(currentTimeMs);
 }
 
+function getTimeoutTime(expirationTime) {
+  const currentMs = now() - originalStartTimeMs;
+  const expirationTimeMs = expirationTimeToMs(expirationTime);
+  return expirationTimeMs - currentMs;
+}
+
 function scheduleCallbackWithExpirationTime(expirationTime) {
   if (callbackExpirationTime !== NoWork) {
     // A callback is already scheduled. Check its expiration time (timeout).
@@ -1622,9 +1628,7 @@ function scheduleCallbackWithExpirationTime(expirationTime) {
   }
 
   callbackExpirationTime = expirationTime;
-  const currentMs = now() - originalStartTimeMs;
-  const expirationTimeMs = expirationTimeToMs(expirationTime);
-  const timeout = expirationTimeMs - currentMs;
+  const timeout = getTimeoutTime(expirationTime);
   callbackID = scheduleDeferredCallback(performAsyncWork, {timeout});
 }
 
@@ -1854,7 +1858,7 @@ function findHighestPriorityRoot() {
 }
 
 function performAsyncWork(dl) {
-  performWork(NoWork, dl);
+  return performWork(NoWork, dl);
 }
 
 function performSyncWork() {
@@ -1918,16 +1922,21 @@ function performWork(minExpirationTime: ExpirationTime, dl: Deadline | null) {
     callbackExpirationTime = NoWork;
     callbackID = null;
   }
-  // If there's work left over, schedule a new callback.
-  if (nextFlushedExpirationTime !== NoWork) {
-    scheduleCallbackWithExpirationTime(nextFlushedExpirationTime);
-  }
 
-  // Clean-up.
+  // Always clean-up.
   deadline = null;
   deadlineDidExpire = false;
 
   finishRendering();
+
+  // If there's work left over, yield and iterate to run this callback again.
+  if (nextFlushedExpirationTime !== NoWork) {
+    callbackExpirationTime = nextFlushedExpirationTime;
+    const timeoutTime = getTimeoutTime(nextFlushedExpirationTime);
+    return {value: timeoutTime, done: false};
+  } else {
+    return {value: null, done: true};
+  }
 }
 
 function flushRoot(root: FiberRoot, expirationTime: ExpirationTime) {
