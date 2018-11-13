@@ -16,13 +16,13 @@ const run = async () => {
   const checkEnvironmentVariables = require('./build-commands/check-environment-variables');
   const checkNpmPermissions = require('./build-commands/check-npm-permissions');
   const checkPackageDependencies = require('./build-commands/check-package-dependencies');
-  const checkUncommittedChanges = require('./build-commands/check-uncommitted-changes');
+  // const checkUncommittedChanges = require('./build-commands/check-uncommitted-changes');
   const installYarnDependencies = require('./build-commands/install-yarn-dependencies');
   const parseBuildParameters = require('./build-commands/parse-build-parameters');
   const printPostBuildSummary = require('./build-commands/print-post-build-summary');
-  const runAutomatedTests = require('./build-commands/run-automated-tests');
-  const runAutomatedBundleTests = require('./build-commands/run-automated-bundle-tests');
-  const updateGit = require('./build-commands/update-git');
+  // const runAutomatedTests = require('./build-commands/run-automated-tests');
+  // const runAutomatedBundleTests = require('./build-commands/run-automated-bundle-tests');
+  // const updateGit = require('./build-commands/update-git');
   const updateNoopRendererDependencies = require('./build-commands/update-noop-renderer-dependencies');
   const updatePackageVersions = require('./build-commands/update-package-versions');
   const updateYarnDependencies = require('./build-commands/update-yarn-dependencies');
@@ -34,14 +34,14 @@ const run = async () => {
 
     await checkEnvironmentVariables(params);
     await validateVersion(params);
-    await checkUncommittedChanges(params);
+    // await checkUncommittedChanges(params);
     await checkNpmPermissions(params);
-    await updateGit(params);
+    // await updateGit(params);
     await checkCircleCiStatus(params);
     await installYarnDependencies(params);
     await checkPackageDependencies(params);
     await updateYarnDependencies(params);
-    await runAutomatedTests(params);
+    // await runAutomatedTests(params);
     // Also update NPM dependencies for private packages (e.g. react-native-renderer)
     // Even though we don't publish these to NPM,
     // mismatching dependencies can cause `yarn install` to install duplicate packages.
@@ -51,7 +51,7 @@ const run = async () => {
     });
     await updateNoopRendererDependencies(params);
     await buildArtifacts(params);
-    await runAutomatedBundleTests(params);
+    // await runAutomatedBundleTests(params);
     await addGitTag(params);
     await printPostBuildSummary(params);
   } catch (error) {
