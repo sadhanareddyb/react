@@ -34,6 +34,7 @@ import {
   ContextConsumer,
   Profiler,
   SuspenseComponent,
+  SuspenseRenderPropComponent,
   FunctionComponent,
   MemoComponent,
   LazyComponent,
@@ -56,6 +57,7 @@ import {
   REACT_PROVIDER_TYPE,
   REACT_CONTEXT_TYPE,
   REACT_CONCURRENT_MODE_TYPE,
+  REACT_SUSPENSE_RENDER_PROP_TYPE,
   REACT_SUSPENSE_TYPE,
   REACT_MEMO_TYPE,
   REACT_LAZY_TYPE,
@@ -475,6 +477,13 @@ export function createFiberFromTypeAndProps(
         );
       case REACT_PROFILER_TYPE:
         return createFiberFromProfiler(pendingProps, mode, expirationTime, key);
+      case REACT_SUSPENSE_RENDER_PROP_TYPE:
+        return createFiberFromSuspenseRenderProp(
+          pendingProps,
+          mode,
+          expirationTime,
+          key,
+        );
       case REACT_SUSPENSE_TYPE:
         return createFiberFromSuspense(pendingProps, mode, expirationTime, key);
       default: {
@@ -632,6 +641,29 @@ export function createFiberFromSuspense(
 
   // TODO: The SuspenseComponent fiber shouldn't have a type. It has a tag.
   const type = REACT_SUSPENSE_TYPE;
+  fiber.elementType = type;
+  fiber.type = type;
+
+  fiber.expirationTime = expirationTime;
+  return fiber;
+}
+
+// TODO (bvaughn+suspense) Rename this to something better
+export function createFiberFromSuspenseRenderProp(
+  pendingProps: any,
+  mode: TypeOfMode,
+  expirationTime: ExpirationTime,
+  key: null | string,
+) {
+  const fiber = createFiber(
+    SuspenseRenderPropComponent,
+    pendingProps,
+    key,
+    mode,
+  );
+
+  // TODO: The SuspenseRenderPropComponent fiber shouldn't have a type. It has a tag.
+  const type = REACT_SUSPENSE_RENDER_PROP_TYPE;
   fiber.elementType = type;
   fiber.type = type;
 

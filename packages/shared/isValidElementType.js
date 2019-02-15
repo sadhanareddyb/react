@@ -15,6 +15,7 @@ import {
   REACT_PROFILER_TYPE,
   REACT_PROVIDER_TYPE,
   REACT_STRICT_MODE_TYPE,
+  REACT_SUSPENSE_RENDER_PROP_TYPE,
   REACT_SUSPENSE_TYPE,
   REACT_MEMO_TYPE,
   REACT_LAZY_TYPE,
@@ -29,6 +30,7 @@ export default function isValidElementType(type: mixed) {
     type === REACT_CONCURRENT_MODE_TYPE ||
     type === REACT_PROFILER_TYPE ||
     type === REACT_STRICT_MODE_TYPE ||
+    type === REACT_SUSPENSE_RENDER_PROP_TYPE ||
     type === REACT_SUSPENSE_TYPE ||
     (typeof type === 'object' &&
       type !== null &&

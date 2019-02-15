@@ -44,6 +44,10 @@ export const REACT_FORWARD_REF_TYPE = hasSymbol
 export const REACT_SUSPENSE_TYPE = hasSymbol
   ? Symbol.for('react.suspense')
   : 0xead1;
+// TODO (bvaughn+suspense) Rename this to something better
+export const REACT_SUSPENSE_RENDER_PROP_TYPE = hasSymbol
+  ? Symbol.for('react.suspense_render_prop')
+  : 0xead5;
 export const REACT_MEMO_TYPE = hasSymbol ? Symbol.for('react.memo') : 0xead3;
 export const REACT_LAZY_TYPE = hasSymbol ? Symbol.for('react.lazy') : 0xead4;
 

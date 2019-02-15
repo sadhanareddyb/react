@@ -1170,6 +1170,7 @@ function performUnitOfWork(workInProgress: Fiber): Fiber | null {
       startProfilerTimer(workInProgress);
     }
 
+    //console.log('performUnitOfWork() \x1b[31m'+getComponentName(workInProgress.type)+'\x1b[0m');
     next = beginWork(current, workInProgress, nextRenderExpirationTime);
     workInProgress.memoizedProps = workInProgress.pendingProps;
 

@@ -47,3 +47,5 @@ export const SimpleMemoComponent = 15;
 export const LazyComponent = 16;
 export const IncompleteClassComponent = 17;
 export const DehydratedSuspenseComponent = 18;
+// TODO (bvaughn+suspense) Rename this to something better
+export const SuspenseRenderPropComponent = 19;

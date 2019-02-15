@@ -31,6 +31,7 @@ import {
   Profiler,
   SuspenseComponent,
   DehydratedSuspenseComponent,
+  SuspenseRenderPropComponent,
   MemoComponent,
   SimpleMemoComponent,
   LazyComponent,
@@ -1345,6 +1346,51 @@ function validateFunctionComponentInDev(workInProgress: Fiber, Component: any) {
   }
 }
 
+function updateSuspenseRenderPropComponent(
+  current,
+  workInProgress,
+  renderExpirationTime,
+) {
+  const nextProps = workInProgress.pendingProps;
+
+  // Check if we already attempted to render the normal state.
+  // If we did, and we timed out, render the placeholder state.
+  const alreadyCaptured = (workInProgress.effectTag & DidCapture) === NoEffect;
+
+  let nextDidTimeout;
+  if (current !== null && workInProgress.updateQueue !== null) {
+    // We're outside strict mode. Something inside this Placeholder boundary
+    // suspended during the last commit. Switch to the placholder.
+    workInProgress.updateQueue = null;
+    nextDidTimeout = true;
+  } else {
+    nextDidTimeout = !alreadyCaptured;
+  }
+
+  if ((workInProgress.mode & StrictMode) !== NoEffect) {
+    if (nextDidTimeout) {
+      // If the timed-out view commits, schedule an update effect to record
+      // the committed time.
+      workInProgress.effectTag |= Update;
+    } else {
+      // The state node points to the time at which placeholder timed out.
+      // We can clear it once we switch back to the normal children.
+      workInProgress.stateNode = null;
+    }
+  }
+
+  const nextChildren = nextProps.children(nextDidTimeout);
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime,
+  );
+  workInProgress.memoizedProps = nextProps;
+  workInProgress.memoizedState = nextDidTimeout;
+  return workInProgress.child;
+}
+
 function updateSuspenseComponent(
   current,
   workInProgress,
@@ -1895,6 +1941,7 @@ function beginWork(
   workInProgress: Fiber,
   renderExpirationTime: ExpirationTime,
 ): Fiber | null {
+  console.log('beginWork()', getComponentName(workInProgress.type));
   const updateExpirationTime = workInProgress.expirationTime;
 
   if (current !== null) {
@@ -1988,8 +2035,12 @@ function beginWork(
             // been unsuspended it has committed as a regular Suspense component.
             // If it needs to be retried, it should have work scheduled on it.
             workInProgress.effectTag |= DidCapture;
-            break;
           }
+          break;
+        }
+        case SuspenseRenderPropComponent: {
+          // TODO (bvaughn+suspense) Do I need to do anything here?
+          break;
         }
       }
       return bailoutOnAlreadyFinishedWork(
@@ -2063,6 +2114,12 @@ function beginWork(
       return updateHostText(current, workInProgress);
     case SuspenseComponent:
       return updateSuspenseComponent(
+        current,
+        workInProgress,
+        renderExpirationTime,
+      );
+    case SuspenseRenderPropComponent:
+      return updateSuspenseRenderPropComponent(
         current,
         workInProgress,
         renderExpirationTime,

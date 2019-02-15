@@ -24,3 +24,9 @@ export function shouldCaptureSuspense(workInProgress: Fiber): boolean {
   const nextState: SuspenseState | null = workInProgress.memoizedState;
   return nextState === null;
 }
+
+export function shouldCaptureSuspenseRenderProp(
+  workInProgress: Fiber,
+): boolean {
+  return workInProgress.memoizedState !== true;
+}

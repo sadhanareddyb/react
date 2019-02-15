@@ -20,6 +20,7 @@ import {
   REACT_PROFILER_TYPE,
   REACT_PROVIDER_TYPE,
   REACT_STRICT_MODE_TYPE,
+  REACT_SUSPENSE_RENDER_PROP_TYPE,
   REACT_SUSPENSE_TYPE,
   REACT_LAZY_TYPE,
 } from 'shared/ReactSymbols';
@@ -68,6 +69,9 @@ function getComponentName(type: mixed): string | null {
       return `Profiler`;
     case REACT_STRICT_MODE_TYPE:
       return 'StrictMode';
+    case REACT_SUSPENSE_RENDER_PROP_TYPE:
+      // TODO (bvaughn+suspense) Rename this to something better
+      return 'SuspenseRenderProp';
     case REACT_SUSPENSE_TYPE:
       return 'Suspense';
   }

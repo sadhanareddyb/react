@@ -26,6 +26,7 @@ import {
   ContextProvider,
   SuspenseComponent,
   DehydratedSuspenseComponent,
+  SuspenseRenderPropComponent,
   IncompleteClassComponent,
 } from 'shared/ReactWorkTags';
 import {
@@ -40,7 +41,10 @@ import {
   enableSuspenseServerRenderer,
 } from 'shared/ReactFeatureFlags';
 import {ConcurrentMode} from './ReactTypeOfMode';
-import {shouldCaptureSuspense} from './ReactFiberSuspenseComponent';
+import {
+  shouldCaptureSuspense,
+  shouldCaptureSuspenseRenderProp,
+} from './ReactFiberSuspenseComponent';
 
 import {createCapturedValue} from './ReactCapturedValue';
 import {
@@ -216,7 +220,10 @@ function throwException(
     let earliestTimeoutMs = -1;
     let startTimeMs = -1;
     do {
-      if (workInProgress.tag === SuspenseComponent) {
+      if (
+        workInProgress.tag === SuspenseComponent ||
+        workInProgress.tag === SuspenseRenderPropComponent
+      ) {
         const current = workInProgress.alternate;
         if (current !== null) {
           const currentState: SuspenseState | null = current.memoizedState;
@@ -251,8 +258,10 @@ function throwException(
     workInProgress = returnFiber;
     do {
       if (
-        workInProgress.tag === SuspenseComponent &&
-        shouldCaptureSuspense(workInProgress)
+        (workInProgress.tag === SuspenseComponent &&
+          shouldCaptureSuspense(workInProgress)) ||
+        (workInProgress.tag === SuspenseRenderPropComponent &&
+          shouldCaptureSuspenseRenderProp(workInProgress))
       ) {
         // Found the nearest boundary.
 
@@ -505,6 +514,15 @@ function unwindWork(
           // Captured a suspense effect. Re-render the boundary.
           return workInProgress;
         }
+      }
+      return null;
+    }
+    case SuspenseRenderPropComponent: {
+      const effectTag = workInProgress.effectTag;
+      if (effectTag & ShouldCapture) {
+        workInProgress.effectTag = (effectTag & ~ShouldCapture) | DidCapture;
+        // Captured a suspense effect. Re-render the boundary.
+        return workInProgress;
       }
       return null;
     }

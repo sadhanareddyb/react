@@ -11,6 +11,7 @@ import {
   REACT_FRAGMENT_TYPE,
   REACT_PROFILER_TYPE,
   REACT_STRICT_MODE_TYPE,
+  REACT_SUSPENSE_RENDER_PROP_TYPE,
   REACT_SUSPENSE_TYPE,
 } from 'shared/ReactSymbols';
 
@@ -79,6 +80,9 @@ const React = {
   Fragment: REACT_FRAGMENT_TYPE,
   StrictMode: REACT_STRICT_MODE_TYPE,
   Suspense: REACT_SUSPENSE_TYPE,
+
+  // TODO (bvaughn+suspense) Rename this to something better
+  unstable_SuspenseRenderProp: REACT_SUSPENSE_RENDER_PROP_TYPE,
 
   createElement: __DEV__ ? createElementWithValidation : createElement,
   cloneElement: __DEV__ ? cloneElementWithValidation : cloneElement,

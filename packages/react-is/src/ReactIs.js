@@ -22,6 +22,7 @@ import {
   REACT_PROFILER_TYPE,
   REACT_PROVIDER_TYPE,
   REACT_STRICT_MODE_TYPE,
+  REACT_SUSPENSE_RENDER_PROP_TYPE,
   REACT_SUSPENSE_TYPE,
 } from 'shared/ReactSymbols';
 import isValidElementType from 'shared/isValidElementType';
@@ -40,6 +41,7 @@ export function typeOf(object: any) {
           case REACT_FRAGMENT_TYPE:
           case REACT_PROFILER_TYPE:
           case REACT_STRICT_MODE_TYPE:
+          case REACT_SUSPENSE_RENDER_PROP_TYPE:
           case REACT_SUSPENSE_TYPE:
             return type;
           default:

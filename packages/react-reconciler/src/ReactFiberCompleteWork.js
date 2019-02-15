@@ -35,6 +35,7 @@ import {
   Profiler,
   SuspenseComponent,
   DehydratedSuspenseComponent,
+  SuspenseRenderPropComponent,
   MemoComponent,
   SimpleMemoComponent,
   LazyComponent,
@@ -738,6 +739,9 @@ function completeWork(
       }
       break;
     }
+    case SuspenseRenderPropComponent:
+      // TODO (bvaughn+suspense) Do we need to do anything?
+      break;
     case Fragment:
       break;
     case Mode:
