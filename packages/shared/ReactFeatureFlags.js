@@ -31,6 +31,9 @@ export const enableProfilerTimer = __PROFILE__;
 // Trace which interactions trigger each commit.
 export const enableSchedulerTracing = __PROFILE__;
 
+// Track which Fiber(s) schedule render work.
+export const enableUpdaterTracking = __PROFILE__;
+
 // Only used in www builds.
 export const enableSuspenseServerRenderer = false; // TODO: __DEV__? Here it might just be false.
 

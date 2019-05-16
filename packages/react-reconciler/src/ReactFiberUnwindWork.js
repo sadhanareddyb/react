@@ -40,6 +40,7 @@ import {
 import {
   enableSchedulerTracing,
   enableSuspenseServerRenderer,
+  enableUpdaterTracking,
   enableEventAPI,
 } from 'shared/ReactFeatureFlags';
 import {NoMode, BatchedMode} from './ReactTypeOfMode';
@@ -77,6 +78,7 @@ import {
   pingSuspendedRoot,
   resolveRetryThenable,
   checkForWrongSuspensePriorityInDEV,
+  restorePendingUpdaters,
 } from './ReactFiberScheduler';
 
 import invariant from 'shared/invariant';
@@ -195,6 +197,10 @@ function attachPingListener(
     if (enableSchedulerTracing) {
       ping = Schedule_tracing_wrap(ping);
     }
+    if (enableUpdaterTracking) {
+      // If we have pending work still, restore the original updaters
+      restorePendingUpdaters(root, renderExpirationTime);
+    }
     thenable.then(ping, ping);
   }
 }
@@ -210,6 +216,11 @@ function throwException(
   sourceFiber.effectTag |= Incomplete;
   // Its effect list is no longer valid.
   sourceFiber.firstEffect = sourceFiber.lastEffect = null;
+
+  if (enableUpdaterTracking) {
+    // If we have pending work still, restore the original updaters
+    restorePendingUpdaters(root, renderExpirationTime);
+  }
 
   if (
     value !== null &&

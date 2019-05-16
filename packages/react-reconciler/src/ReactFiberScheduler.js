@@ -20,6 +20,7 @@ import type {SuspenseConfig} from './ReactFiberSuspenseConfig';
 import {
   warnAboutDeprecatedLifecycles,
   enableUserTimingAPI,
+  enableUpdaterTracking,
   enableSuspenseServerRenderer,
   replayFailedUnitOfWorkWithInvokeGuardedCallback,
   enableProfilerTimer,
@@ -349,6 +350,16 @@ export function scheduleUpdateOnFiber(
   if (root === null) {
     warnAboutUpdateOnUnmountedFiberInDEV(fiber);
     return;
+  }
+
+  if (enableUpdaterTracking) {
+    const pendingUpdatersMap = root.pendingUpdatersMap;
+    let updaters = pendingUpdatersMap.get(expirationTime);
+    if (updaters == null) {
+      updaters = new Set();
+      pendingUpdatersMap.set(expirationTime, updaters);
+    }
+    updaters.add(fiber);
   }
 
   root.pingTime = NoWork;
@@ -1362,6 +1373,12 @@ function commitRootImpl(root) {
     // This usually means we've finished all the work, but it can also happen
     // when something gets downprioritized during render, like a hidden tree.
     root.lastPendingTime = firstPendingTimeBeforeCommit;
+
+    if (enableUpdaterTracking) {
+      if (firstPendingTimeBeforeCommit !== NoWork) {
+        restorePendingUpdaters(root, root.lastPendingTime);
+      }
+    }
   }
 
   if (root === workInProgressRoot) {
@@ -1447,7 +1464,13 @@ function commitRootImpl(root) {
     nextEffect = firstEffect;
     do {
       if (__DEV__) {
-        invokeGuardedCallback(null, commitMutationEffects, null);
+        invokeGuardedCallback(
+          null,
+          commitMutationEffects,
+          null,
+          root,
+          expirationTime,
+        );
         if (hasCaughtError()) {
           invariant(nextEffect !== null, 'Should be working on an effect.');
           const error = clearCaughtError();
@@ -1456,7 +1479,7 @@ function commitRootImpl(root) {
         }
       } else {
         try {
-          commitMutationEffects();
+          commitMutationEffects(root, expirationTime);
         } catch (error) {
           invariant(nextEffect !== null, 'Should be working on an effect.');
           captureCommitPhaseError(nextEffect, error);
@@ -1610,7 +1633,10 @@ function commitBeforeMutationEffects() {
   }
 }
 
-function commitMutationEffects() {
+function commitMutationEffects(
+  root: FiberRoot,
+  committedExpirationTime: ExpirationTime,
+) {
   // TODO: Should probably move the bulk of this function to commitWork.
   while (nextEffect !== null) {
     setCurrentDebugFiberInDEV(nextEffect);
@@ -1652,12 +1678,12 @@ function commitMutationEffects() {
 
         // Update
         const current = nextEffect.alternate;
-        commitWork(current, nextEffect);
+        commitWork(root, current, nextEffect, committedExpirationTime);
         break;
       }
       case Update: {
         const current = nextEffect.alternate;
-        commitWork(current, nextEffect);
+        commitWork(root, current, nextEffect, committedExpirationTime);
         break;
       }
       case Deletion: {
@@ -2281,6 +2307,24 @@ function warnIfNotCurrentlyActingUpdatesInDEV(fiber: Fiber): void {
   }
 }
 
+export function restorePendingUpdaters(
+  root: FiberRoot,
+  expirationTime: ExpirationTime,
+): void {
+  if (!enableUpdaterTracking) {
+    return;
+  }
+  const pendingUpdatersMap = root.pendingUpdatersMap;
+  let updaters = pendingUpdatersMap.get(expirationTime);
+  if (updaters == null) {
+    updaters = new Set();
+    pendingUpdatersMap.set(expirationTime, updaters);
+  }
+  root.memoizedUpdaters.forEach(schedulingFiber => {
+    ((updaters: any): Set<Fiber>).add(schedulingFiber);
+  });
+}
+
 export const warnIfNotCurrentlyActingUpdatesInDev = warnIfNotCurrentlyActingUpdatesInDEV;
 
 let componentsWithSuspendedDiscreteUpdates = null;
@@ -2397,42 +2441,58 @@ function schedulePendingInteraction(root, expirationTime) {
 
 function startWorkOnPendingInteraction(root, expirationTime) {
   // This is called when new work is started on a root.
-  if (!enableSchedulerTracing) {
-    return;
+
+  if (enableUpdaterTracking) {
+    const memoizedUpdaters: Set<Fiber> = new Set();
+    const pendingUpdatersMap = root.pendingUpdatersMap;
+    pendingUpdatersMap.forEach((updaters, scheduledExpirationTime) => {
+      if (scheduledExpirationTime >= expirationTime) {
+        pendingUpdatersMap.delete(scheduledExpirationTime);
+        updaters.forEach(fiber => memoizedUpdaters.add(fiber));
+      }
+    });
+
+    // Store the current set of interactions on the FiberRoot for a few reasons:
+    // We can re-use it in hot functions like renderRoot() without having to
+    // recalculate it. This also provides DevTools with a way to access it when
+    // the onCommitRoot() hook is called.
+    root.memoizedUpdaters = memoizedUpdaters;
   }
 
-  // Determine which interactions this batch of work currently includes, So that
-  // we can accurately attribute time spent working on it, And so that cascading
-  // work triggered during the render phase will be associated with it.
-  const interactions: Set<Interaction> = new Set();
-  root.pendingInteractionMap.forEach(
-    (scheduledInteractions, scheduledExpirationTime) => {
-      if (scheduledExpirationTime >= expirationTime) {
-        scheduledInteractions.forEach(interaction =>
-          interactions.add(interaction),
-        );
-      }
-    },
-  );
+  if (enableSchedulerTracing) {
+    // Determine which interactions this batch of work currently includes, So that
+    // we can accurately attribute time spent working on it, And so that cascading
+    // work triggered during the render phase will be associated with it.
+    const interactions: Set<Interaction> = new Set();
+    root.pendingInteractionMap.forEach(
+      (scheduledInteractions, scheduledExpirationTime) => {
+        if (scheduledExpirationTime >= expirationTime) {
+          scheduledInteractions.forEach(interaction =>
+            interactions.add(interaction),
+          );
+        }
+      },
+    );
 
-  // Store the current set of interactions on the FiberRoot for a few reasons:
-  // We can re-use it in hot functions like renderRoot() without having to
-  // recalculate it. We will also use it in commitWork() to pass to any Profiler
-  // onRender() hooks. This also provides DevTools with a way to access it when
-  // the onCommitRoot() hook is called.
-  root.memoizedInteractions = interactions;
+    // Store the current set of interactions on the FiberRoot for a few reasons:
+    // We can re-use it in hot functions like renderRoot() without having to
+    // recalculate it. We will also use it in commitWork() to pass to any Profiler
+    // onRender() hooks. This also provides DevTools with a way to access it when
+    // the onCommitRoot() hook is called.
+    root.memoizedInteractions = interactions;
 
-  if (interactions.size > 0) {
-    const subscriber = __subscriberRef.current;
-    if (subscriber !== null) {
-      const threadID = computeThreadID(root, expirationTime);
-      try {
-        subscriber.onWorkStarted(interactions, threadID);
-      } catch (error) {
-        // If the subscriber throws, rethrow it in a separate task
-        scheduleCallback(ImmediatePriority, () => {
-          throw error;
-        });
+    if (interactions.size > 0) {
+      const subscriber = __subscriberRef.current;
+      if (subscriber !== null) {
+        const threadID = computeThreadID(root, expirationTime);
+        try {
+          subscriber.onWorkStarted(interactions, threadID);
+        } catch (error) {
+          // If the subscriber throws, rethrow it in a separate task
+          scheduleCallback(ImmediatePriority, () => {
+            throw error;
+          });
+        }
       }
     }
   }

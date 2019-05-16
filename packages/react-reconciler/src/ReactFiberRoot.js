@@ -17,7 +17,10 @@ import type {Interaction} from 'scheduler/src/Tracing';
 import {noTimeout} from './ReactFiberHostConfig';
 import {createHostRootFiber} from './ReactFiber';
 import {NoWork} from './ReactFiberExpirationTime';
-import {enableSchedulerTracing} from 'shared/ReactFeatureFlags';
+import {
+  enableSchedulerTracing,
+  enableUpdaterTracking,
+} from 'shared/ReactFeatureFlags';
 import {unstable_getThreadID} from 'scheduler/tracing';
 
 // TODO: This should be lifted into the renderer.
@@ -29,6 +32,9 @@ export type Batch = {
 };
 
 export type PendingInteractionMap = Map<ExpirationTime, Set<Interaction>>;
+
+// Map of expiration time to all pending "updaters" which in turn is a map of Fibers to reference counts.
+export type PendingUpdatersMap = Map<ExpirationTime, Set<Fiber>>;
 
 type BaseFiberRootProperties = {|
   // The type of root (legacy, batched, concurrent, etc.)
@@ -83,6 +89,13 @@ type ProfilingOnlyFiberRootProperties = {|
   pendingInteractionMap: PendingInteractionMap,
 |};
 
+// The following attributes are only used by DevTools and are only present in DEV builds.
+// They enable DevTools Profiler UI to show which Fiber(s) scheduled a given commit.
+type UpdaterTrackingOnlyFiberRootProperties = {|
+  memoizedUpdaters: Set<Fiber>,
+  pendingUpdatersMap: PendingUpdatersMap,
+|};
+
 // Exported FiberRoot type includes all properties,
 // To avoid requiring potentially error-prone :any casts throughout the project.
 // Profiling properties are only safe to access in profiling builds (when enableSchedulerTracing is true).
@@ -91,6 +104,7 @@ type ProfilingOnlyFiberRootProperties = {|
 export type FiberRoot = {
   ...BaseFiberRootProperties,
   ...ProfilingOnlyFiberRootProperties,
+  ...UpdaterTrackingOnlyFiberRootProperties,
 };
 
 function FiberRootNode(containerInfo, tag, hydrate) {
@@ -116,6 +130,11 @@ function FiberRootNode(containerInfo, tag, hydrate) {
     this.interactionThreadID = unstable_getThreadID();
     this.memoizedInteractions = new Set();
     this.pendingInteractionMap = new Map();
+  }
+
+  if (enableUpdaterTracking) {
+    this.memoizedUpdaters = new Set();
+    this.pendingUpdatersMap = new Map();
   }
 }
 

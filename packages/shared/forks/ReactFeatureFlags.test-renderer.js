@@ -19,6 +19,7 @@ export const warnAboutDeprecatedLifecycles = false;
 export const replayFailedUnitOfWorkWithInvokeGuardedCallback = false;
 export const enableProfilerTimer = false;
 export const enableSchedulerTracing = false;
+export const enableUpdaterTracking = false;
 export const enableSuspenseServerRenderer = false;
 export const disableJavaScriptURLs = false;
 export const disableYielding = false;

@@ -28,6 +28,7 @@ import {
   enableSchedulerTracing,
   enableProfilerTimer,
   enableSuspenseServerRenderer,
+  enableUpdaterTracking,
   enableEventAPI,
 } from 'shared/ReactFeatureFlags';
 import {
@@ -104,6 +105,7 @@ import {
   captureCommitPhaseError,
   requestCurrentTime,
   resolveRetryThenable,
+  restorePendingUpdaters,
 } from './ReactFiberScheduler';
 import {
   NoEffect as NoHookEffect,
@@ -1169,7 +1171,12 @@ function commitDeletion(current: Fiber): void {
   detachFiber(current);
 }
 
-function commitWork(current: Fiber | null, finishedWork: Fiber): void {
+function commitWork(
+  finishedRoot: FiberRoot,
+  current: Fiber | null,
+  finishedWork: Fiber,
+  committedExpirationTime: ExpirationTime,
+): void {
   if (!supportsMutation) {
     switch (finishedWork.tag) {
       case FunctionComponent:
@@ -1185,7 +1192,11 @@ function commitWork(current: Fiber | null, finishedWork: Fiber): void {
         return;
       }
       case SuspenseComponent: {
-        commitSuspenseComponent(finishedWork);
+        commitSuspenseComponent(
+          finishedRoot,
+          finishedWork,
+          committedExpirationTime,
+        );
         return;
       }
     }
@@ -1259,7 +1270,11 @@ function commitWork(current: Fiber | null, finishedWork: Fiber): void {
       return;
     }
     case SuspenseComponent: {
-      commitSuspenseComponent(finishedWork);
+      commitSuspenseComponent(
+        finishedRoot,
+        finishedWork,
+        committedExpirationTime,
+      );
       return;
     }
     case IncompleteClassComponent: {
@@ -1278,7 +1293,11 @@ function commitWork(current: Fiber | null, finishedWork: Fiber): void {
   }
 }
 
-function commitSuspenseComponent(finishedWork: Fiber) {
+function commitSuspenseComponent(
+  finishedRoot: FiberRoot,
+  finishedWork: Fiber,
+  committedExpirationTime: ExpirationTime,
+) {
   let newState: SuspenseState | null = finishedWork.memoizedState;
 
   let newDidTimeout;
@@ -1320,6 +1339,10 @@ function commitSuspenseComponent(finishedWork: Fiber) {
       if (!retryCache.has(thenable)) {
         if (enableSchedulerTracing) {
           retry = Schedule_tracing_wrap(retry);
+        }
+        if (enableUpdaterTracking) {
+          // If we have pending work still, restore the original updaters
+          restorePendingUpdaters(finishedRoot, committedExpirationTime);
         }
         retryCache.add(thenable);
         thenable.then(retry, retry);
