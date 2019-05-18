@@ -68,7 +68,7 @@ import {
   NoWork,
   computeAsyncExpirationNoBucket,
 } from './ReactFiberExpirationTime';
-import {onCommitUnmount} from './ReactFiberDevToolsHook';
+import {isDevToolsPresent, onCommitUnmount} from './ReactFiberDevToolsHook';
 import {startPhaseTimer, stopPhaseTimer} from './ReactDebugFiberPerf';
 import {getStackByFiberInDevAndProd} from './ReactCurrentFiber';
 import {logCapturedError} from './ReactFiberErrorLogger';
@@ -1341,8 +1341,10 @@ function commitSuspenseComponent(
           retry = Schedule_tracing_wrap(retry);
         }
         if (enableUpdaterTracking) {
-          // If we have pending work still, restore the original updaters
-          restorePendingUpdaters(finishedRoot, committedExpirationTime);
+          if (isDevToolsPresent) {
+            // If we have pending work still, restore the original updaters
+            restorePendingUpdaters(finishedRoot, committedExpirationTime);
+          }
         }
         retryCache.add(thenable);
         thenable.then(retry, retry);

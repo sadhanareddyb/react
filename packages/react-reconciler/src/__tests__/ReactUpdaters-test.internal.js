@@ -12,50 +12,62 @@
 let React;
 let ReactFeatureFlags;
 let ReactDOM;
+let ReactTestRenderer;
+let ReactTestUtils;
 let Scheduler;
-let TestUtils;
 let mockDevToolsHook;
 let allSchedulerTags;
 let allSchedulerTypes;
+let onCommitRootShouldYield;
+
+function loadModules({useDOMRenderer = true} = {}) {
+  jest.resetModules();
+
+  allSchedulerTags = [];
+  allSchedulerTypes = [];
+
+  onCommitRootShouldYield = true;
+
+  mockDevToolsHook = {
+    injectInternals: jest.fn(() => {}),
+    onCommitRoot: jest.fn(fiberRoot => {
+      if (onCommitRootShouldYield) {
+        Scheduler.yieldValue('onCommitRoot');
+      }
+      const schedulerTags = [];
+      const schedulerTypes = [];
+      fiberRoot.memoizedUpdaters.forEach(fiber => {
+        schedulerTags.push(fiber.tag);
+        schedulerTypes.push(fiber.elementType);
+      });
+      allSchedulerTags.push(schedulerTags);
+      allSchedulerTypes.push(schedulerTypes);
+    }),
+    onCommitUnmount: jest.fn(() => {}),
+    isDevToolsPresent: true,
+  };
+
+  jest.mock(
+    'react-reconciler/src/ReactFiberDevToolsHook',
+    () => mockDevToolsHook,
+  );
+
+  ReactFeatureFlags = require('shared/ReactFeatureFlags');
+  ReactFeatureFlags.enableUpdaterTracking = true;
+  ReactFeatureFlags.debugRenderPhaseSideEffectsForStrictMode = false;
+
+  React = require('react');
+  if (useDOMRenderer) {
+    ReactDOM = require('react-dom');
+    ReactTestUtils = require('react-dom/test-utils');
+  } else {
+    ReactTestRenderer = require('react-test-renderer');
+  }
+  Scheduler = require('scheduler');
+}
 
 describe('updaters', () => {
-  beforeEach(() => {
-    jest.resetModules();
-
-    allSchedulerTags = [];
-    allSchedulerTypes = [];
-
-    mockDevToolsHook = {
-      injectInternals: jest.fn(() => {}),
-      onCommitRoot: jest.fn(fiberRoot => {
-        Scheduler.yieldValue('onCommitRoot');
-        const schedulerTags = [];
-        const schedulerTypes = [];
-        fiberRoot.memoizedUpdaters.forEach(fiber => {
-          schedulerTags.push(fiber.tag);
-          schedulerTypes.push(fiber.elementType);
-        });
-        allSchedulerTags.push(schedulerTags);
-        allSchedulerTypes.push(schedulerTypes);
-      }),
-      onCommitUnmount: jest.fn(() => {}),
-      isDevToolsPresent: true,
-    };
-
-    jest.mock(
-      'react-reconciler/src/ReactFiberDevToolsHook',
-      () => mockDevToolsHook,
-    );
-
-    ReactFeatureFlags = require('shared/ReactFeatureFlags');
-    ReactFeatureFlags.enableUpdaterTracking = true;
-    ReactFeatureFlags.debugRenderPhaseSideEffectsForStrictMode = false;
-
-    React = require('react');
-    ReactDOM = require('react-dom');
-    Scheduler = require('scheduler');
-    TestUtils = require('react-dom/test-utils');
-  });
+  beforeEach(() => loadModules());
 
   it('should report the (host) root as the scheduler for root-level render', () => {
     const {HostRoot} = require('shared/ReactWorkTags');
@@ -64,14 +76,14 @@ describe('updaters', () => {
     const Child = () => null;
     const container = document.createElement('div');
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       ReactDOM.render(<Parent />, container);
     });
     expect(allSchedulerTags).toHaveLength(1);
     expect(allSchedulerTags[0]).toHaveLength(1);
     expect(allSchedulerTags[0]).toContain(HostRoot);
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       ReactDOM.render(<Parent />, container);
     });
     expect(allSchedulerTags).toHaveLength(2);
@@ -101,19 +113,19 @@ describe('updaters', () => {
     };
     const Child = () => null;
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       ReactDOM.render(<Parent />, document.createElement('div'));
     });
     expect(scheduleForA).not.toBeNull();
     expect(scheduleForB).not.toBeNull();
     expect(allSchedulerTypes).toHaveLength(1);
 
-    TestUtils.act(scheduleForA);
+    ReactTestUtils.act(scheduleForA);
     expect(allSchedulerTypes).toHaveLength(2);
     expect(allSchedulerTypes[1]).toHaveLength(1);
     expect(allSchedulerTypes[1]).toContain(SchedulingComponentA);
 
-    TestUtils.act(scheduleForB);
+    ReactTestUtils.act(scheduleForB);
     expect(allSchedulerTypes).toHaveLength(3);
     expect(allSchedulerTypes[2]).toHaveLength(1);
     expect(allSchedulerTypes[2]).toContain(SchedulingComponentB);
@@ -130,13 +142,13 @@ describe('updaters', () => {
     }
     const Child = () => null;
     let instance;
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       ReactDOM.render(<Parent />, document.createElement('div'));
     });
     expect(allSchedulerTypes).toHaveLength(1);
 
     expect(instance).not.toBeNull();
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       instance.setState({});
     });
     expect(allSchedulerTypes).toHaveLength(2);
@@ -180,7 +192,7 @@ describe('updaters', () => {
     };
 
     const root = ReactDOM.unstable_createRoot(document.createElement('div'));
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       root.render(<Parent />);
       expect(Scheduler).toFlushAndYieldThrough([
         'CascadingChild 0',
@@ -191,7 +203,7 @@ describe('updaters', () => {
     expect(triggerPassiveCascade).not.toBeNull();
     expect(allSchedulerTypes).toHaveLength(1);
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       triggerActiveCascade();
       expect(Scheduler).toFlushAndYieldThrough([
         'CascadingChild 0',
@@ -206,7 +218,7 @@ describe('updaters', () => {
     expect(allSchedulerTypes[2]).toHaveLength(1);
     expect(allSchedulerTypes[2]).toContain(CascadingChild);
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       triggerPassiveCascade();
       expect(Scheduler).toFlushAndYieldThrough([
         'CascadingChild 1',
@@ -259,14 +271,14 @@ describe('updaters', () => {
       }
     };
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       ReactDOM.render(<Parent />, document.createElement('div'));
       expect(Scheduler).toHaveYielded(['onCommitRoot']);
     });
     expect(setShouldSuspend).not.toBeNull();
     expect(allSchedulerTypes).toHaveLength(1);
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       setShouldSuspend(true);
       expect(Scheduler).toFlushAndYieldThrough(['onCommitRoot']);
     });
@@ -275,7 +287,7 @@ describe('updaters', () => {
     expect(allSchedulerTypes[1]).toContain(Suspender);
 
     expect(resolver).not.toBeNull();
-    await TestUtils.act(() => {
+    await ReactTestUtils.act(() => {
       resolver('abc');
       return promise;
     });
@@ -318,14 +330,14 @@ describe('updaters', () => {
     };
 
     const root = ReactDOM.unstable_createRoot(document.createElement('div'));
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       root.render(<Parent />);
       expect(Scheduler).toFlushAndYieldThrough(['NotHidden', 'onCommitRoot']);
     });
     expect(allSchedulerTypes).toHaveLength(1);
 
     expect(setIncludeHiddenTree).not.toBeNull();
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       setIncludeHiddenTree(true);
       expect(Scheduler).toFlushAndYieldThrough(['NotHidden', 'onCommitRoot']);
       expect(allSchedulerTypes).toHaveLength(2);
@@ -381,7 +393,7 @@ describe('updaters', () => {
     };
 
     const root = ReactDOM.unstable_createRoot(document.createElement('div'));
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       root.render(<Parent shouldError={false} />);
       expect(Scheduler).toFlushAndYieldThrough(['initial', 'onCommitRoot']);
     });
@@ -389,6 +401,7 @@ describe('updaters', () => {
 
     const schedulerTypes = [];
 
+    // TODO DELETE THIS
     mockDevToolsHook.onCommitRoot.mockImplementation(fiberRoot => {
       Scheduler.yieldValue('onCommitRoot');
       schedulerTypes.push(
@@ -396,7 +409,7 @@ describe('updaters', () => {
       );
     });
 
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       triggerError();
       expect(Scheduler).toFlushAndYieldThrough([
         'onCommitRoot',
@@ -436,7 +449,7 @@ describe('updaters', () => {
     };
 
     const root = ReactDOM.unstable_createRoot(document.createElement('div'));
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       root.render(
         <React.Fragment>
           <HighPriorityUpdater />
@@ -456,7 +469,7 @@ describe('updaters', () => {
     expect(allSchedulerTypes).toHaveLength(1);
 
     // Render a partially update, but don't finish.
-    TestUtils.act(() => {
+    ReactTestUtils.act(() => {
       triggerLowPriorityUpdate();
       expect(Scheduler).toFlushAndYieldThrough(['LowPriorityUpdater 1']);
       expect(allSchedulerTypes).toHaveLength(1);
@@ -486,5 +499,86 @@ describe('updaters', () => {
 
     // Verify no outstanding flushes
     Scheduler.flushAll();
+  });
+
+  it('should not lose track of updaters if work yields before finishing', () => {
+    loadModules({useDOMRenderer: false});
+
+    const {HostRoot} = require('shared/ReactWorkTags');
+
+    const Yield = ({renderTime}) => {
+      Scheduler.advanceTime(renderTime);
+      Scheduler.yieldValue('Yield:' + renderTime);
+      return null;
+    };
+
+    let first;
+    class FirstComponent extends React.Component {
+      state = {renderTime: 1};
+      render() {
+        first = this;
+        Scheduler.advanceTime(this.state.renderTime);
+        Scheduler.yieldValue('FirstComponent:' + this.state.renderTime);
+        return <Yield renderTime={4} />;
+      }
+    }
+    let second;
+    class SecondComponent extends React.Component {
+      state = {renderTime: 2};
+      render() {
+        second = this;
+        Scheduler.advanceTime(this.state.renderTime);
+        Scheduler.yieldValue('SecondComponent:' + this.state.renderTime);
+        return <Yield renderTime={7} />;
+      }
+    }
+
+    Scheduler.advanceTime(5); // 0 -> 5
+
+    const renderer = ReactTestRenderer.create(
+      <React.Fragment>
+        <FirstComponent />
+        <SecondComponent />
+      </React.Fragment>,
+      {unstable_isConcurrent: true},
+    );
+
+    // Render everything initially.
+    expect(Scheduler).toFlushAndYield([
+      'FirstComponent:1',
+      'Yield:4',
+      'SecondComponent:2',
+      'Yield:7',
+      'onCommitRoot',
+    ]);
+    expect(allSchedulerTags).toHaveLength(1);
+    expect(allSchedulerTags[0]).toHaveLength(1);
+    expect(allSchedulerTags[0]).toContain(HostRoot);
+
+    // Render a partially update, but don't finish.
+    first.setState({renderTime: 10});
+    expect(Scheduler).toFlushAndYieldThrough(['FirstComponent:10']);
+    expect(allSchedulerTypes).toHaveLength(1);
+
+    // Interrupt with higher priority work.
+    renderer.unstable_flushSync(() => second.setState({renderTime: 30}));
+    expect(Scheduler).toHaveYielded([
+      'SecondComponent:30',
+      'Yield:7',
+      'onCommitRoot',
+    ]);
+    expect(allSchedulerTypes).toHaveLength(2);
+    expect(allSchedulerTypes[1]).toHaveLength(1);
+    expect(allSchedulerTypes[1]).toContain(SecondComponent);
+
+    // Resume the original low priority update.
+    expect(Scheduler).toFlushAndYield([
+      'FirstComponent:10',
+      'Yield:4',
+      'onCommitRoot',
+    ]);
+    expect(allSchedulerTypes).toHaveLength(3);
+    expect(allSchedulerTypes[2]).toHaveLength(1);
+    expect(allSchedulerTypes[2]).toContain(FirstComponent);
   });
 });

@@ -169,7 +169,7 @@ import {
   hasCaughtError,
   clearCaughtError,
 } from 'shared/ReactErrorUtils';
-import {onCommitRoot} from './ReactFiberDevToolsHook';
+import {isDevToolsPresent, onCommitRoot} from './ReactFiberDevToolsHook';
 
 const ceil = Math.ceil;
 
@@ -353,13 +353,15 @@ export function scheduleUpdateOnFiber(
   }
 
   if (enableUpdaterTracking) {
-    const pendingUpdatersMap = root.pendingUpdatersMap;
-    let updaters = pendingUpdatersMap.get(expirationTime);
-    if (updaters == null) {
-      updaters = new Set();
-      pendingUpdatersMap.set(expirationTime, updaters);
+    if (isDevToolsPresent) {
+      const pendingUpdatersMap = root.pendingUpdatersMap;
+      let updaters = pendingUpdatersMap.get(expirationTime);
+      if (updaters == null) {
+        updaters = new Set();
+        pendingUpdatersMap.set(expirationTime, updaters);
+      }
+      updaters.add(fiber);
     }
-    updaters.add(fiber);
   }
 
   root.pingTime = NoWork;
@@ -829,6 +831,17 @@ function renderRoot(
               Interaction,
             >);
           }
+
+          if (enableUpdaterTracking) {
+            if (isDevToolsPresent) {
+              // If we didn't finish the current work, restore pending updaters for the next pass.
+              if (root.memoizedUpdaters.size > 0) {
+                restorePendingUpdaters(root, expirationTime);
+                root.memoizedUpdaters.clear();
+              }
+            }
+          }
+
           return renderRoot.bind(null, root, currentTime);
         }
       }
@@ -894,6 +907,17 @@ function renderRoot(
       if (expirationTime !== Sync) {
         startRequestCallbackTimer();
       }
+
+      if (enableUpdaterTracking) {
+        if (isDevToolsPresent) {
+          // If we didn't finish the current work, restore pending updaters for the next pass.
+          if (root.memoizedUpdaters.size > 0) {
+            restorePendingUpdaters(root, expirationTime);
+            root.memoizedUpdaters.clear();
+          }
+        }
+      }
+
       return renderRoot.bind(null, root, expirationTime);
     }
   }
@@ -1375,8 +1399,10 @@ function commitRootImpl(root) {
     root.lastPendingTime = firstPendingTimeBeforeCommit;
 
     if (enableUpdaterTracking) {
-      if (firstPendingTimeBeforeCommit !== NoWork) {
-        restorePendingUpdaters(root, root.lastPendingTime);
+      if (isDevToolsPresent) {
+        if (firstPendingTimeBeforeCommit !== NoWork) {
+          restorePendingUpdaters(root, root.lastPendingTime);
+        }
       }
     }
   }
@@ -1584,6 +1610,12 @@ function commitRootImpl(root) {
   }
 
   onCommitRoot(finishedWork.stateNode, expirationTime);
+
+  if (enableUpdaterTracking) {
+    if (isDevToolsPresent) {
+      root.memoizedUpdaters.clear();
+    }
+  }
 
   if (remainingExpirationTime === Sync) {
     // Count the number of times the root synchronously re-renders without
@@ -2311,7 +2343,7 @@ export function restorePendingUpdaters(
   root: FiberRoot,
   expirationTime: ExpirationTime,
 ): void {
-  if (!enableUpdaterTracking) {
+  if (!enableUpdaterTracking || !isDevToolsPresent) {
     return;
   }
   const pendingUpdatersMap = root.pendingUpdatersMap;
@@ -2443,20 +2475,21 @@ function startWorkOnPendingInteraction(root, expirationTime) {
   // This is called when new work is started on a root.
 
   if (enableUpdaterTracking) {
-    const memoizedUpdaters: Set<Fiber> = new Set();
-    const pendingUpdatersMap = root.pendingUpdatersMap;
-    pendingUpdatersMap.forEach((updaters, scheduledExpirationTime) => {
-      if (scheduledExpirationTime >= expirationTime) {
-        pendingUpdatersMap.delete(scheduledExpirationTime);
-        updaters.forEach(fiber => memoizedUpdaters.add(fiber));
-      }
-    });
-
-    // Store the current set of interactions on the FiberRoot for a few reasons:
-    // We can re-use it in hot functions like renderRoot() without having to
-    // recalculate it. This also provides DevTools with a way to access it when
-    // the onCommitRoot() hook is called.
-    root.memoizedUpdaters = memoizedUpdaters;
+    if (isDevToolsPresent) {
+      // Store the current set of interactions on the FiberRoot for a few reasons:
+      // We can re-use it in hot functions like renderRoot() without having to
+      // recalculate it. This also provides DevTools with a way to access it when
+      // the onCommitRoot() hook is called.
+      const pendingUpdatersMap = root.pendingUpdatersMap;
+      pendingUpdatersMap.forEach((updaters, scheduledExpirationTime) => {
+        if (scheduledExpirationTime >= expirationTime) {
+          pendingUpdatersMap.delete(scheduledExpirationTime);
+          updaters.forEach(fiber => {
+            root.memoizedUpdaters.add(fiber);
+          });
+        }
+      });
+    }
   }
 
   if (enableSchedulerTracing) {

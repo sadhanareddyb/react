@@ -80,6 +80,7 @@ import {
   checkForWrongSuspensePriorityInDEV,
   restorePendingUpdaters,
 } from './ReactFiberScheduler';
+import {isDevToolsPresent} from './ReactFiberDevToolsHook';
 
 import invariant from 'shared/invariant';
 
@@ -198,8 +199,10 @@ function attachPingListener(
       ping = Schedule_tracing_wrap(ping);
     }
     if (enableUpdaterTracking) {
-      // If we have pending work still, restore the original updaters
-      restorePendingUpdaters(root, renderExpirationTime);
+      if (isDevToolsPresent) {
+        // If we have pending work still, restore the original updaters
+        restorePendingUpdaters(root, renderExpirationTime);
+      }
     }
     thenable.then(ping, ping);
   }
@@ -218,8 +221,10 @@ function throwException(
   sourceFiber.firstEffect = sourceFiber.lastEffect = null;
 
   if (enableUpdaterTracking) {
-    // If we have pending work still, restore the original updaters
-    restorePendingUpdaters(root, renderExpirationTime);
+    if (isDevToolsPresent) {
+      // If we have pending work still, restore the original updaters
+      restorePendingUpdaters(root, renderExpirationTime);
+    }
   }
 
   if (
