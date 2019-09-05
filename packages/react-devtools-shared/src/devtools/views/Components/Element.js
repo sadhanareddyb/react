@@ -15,18 +15,29 @@ import {createRegExp} from '../utils';
 import {TreeDispatcherContext, TreeStateContext} from './TreeContext';
 import {StoreContext} from '../context';
 
-import type {ItemData} from './Tree';
 import type {Element} from './types';
 
 import styles from './Element.css';
 
 type Props = {
-  data: ItemData,
   index: number,
+  isNavigatingWithKeyboard: boolean,
+  lastScrolledIDRef: {current: number | null},
+  numElements: number,
+  onElementMouseEnter: (id: number) => void,
   style: Object,
+  treeFocused: boolean,
 };
 
-export default function ElementView({data, index, style}: Props) {
+export default function ElementView({
+  index,
+  isNavigatingWithKeyboard,
+  lastScrolledIDRef,
+  numElements,
+  onElementMouseEnter,
+  style,
+  treeFocused,
+}: Props) {
   const store = useContext(StoreContext);
   const {ownerFlatTree, ownerID, selectedElementID} = useContext(
     TreeStateContext,
@@ -40,7 +51,6 @@ export default function ElementView({data, index, style}: Props) {
 
   const [isHovered, setIsHovered] = useState(false);
 
-  const {isNavigatingWithKeyboard, onElementMouseEnter, treeFocused} = data;
   const id = element === null ? null : element.id;
   const isSelected = selectedElementID === id;
 

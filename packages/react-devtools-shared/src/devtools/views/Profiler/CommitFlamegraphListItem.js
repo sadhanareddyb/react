@@ -11,26 +11,32 @@ import React, {Fragment, memo, useCallback, useContext} from 'react';
 import {areEqual} from 'react-window';
 import {barWidthThreshold} from './constants';
 import {getGradientColor} from './utils';
-import ChartNode from './ChartNode';
+import ChartNodeComponent from './ChartNode';
 import {SettingsContext} from '../Settings/SettingsContext';
 
-import type {ItemData} from './CommitFlamegraph';
+import type {ChartData, ChartNode} from './FlamegraphChartBuilder';
 
 type Props = {
-  data: ItemData,
+  chartData: ChartData,
   index: number,
+  scaleX: (value: number, fallbackValue: number) => number,
+  selectedChartNode: ChartNode | null,
+  selectedChartNodeIndex: number,
+  selectFiber: (id: number | null, name: string | null) => void,
   style: Object,
+  width: number,
 };
 
-function CommitFlamegraphListItem({data, index, style}: Props) {
-  const {
-    chartData,
-    scaleX,
-    selectedChartNode,
-    selectedChartNodeIndex,
-    selectFiber,
-    width,
-  } = data;
+function CommitFlamegraphListItem({
+  chartData,
+  index,
+  scaleX,
+  selectedChartNode,
+  selectedChartNodeIndex,
+  selectFiber,
+  style,
+  width,
+}: Props) {
   const {renderPathNodes, maxSelfDuration, rows} = chartData;
 
   const {lineHeight} = useContext(SettingsContext);
@@ -96,7 +102,7 @@ function CommitFlamegraphListItem({data, index, style}: Props) {
         }
 
         return (
-          <ChartNode
+          <ChartNodeComponent
             color={color}
             height={lineHeight}
             isDimmed={index < selectedChartNodeIndex}

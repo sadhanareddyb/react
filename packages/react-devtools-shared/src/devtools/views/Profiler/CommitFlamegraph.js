@@ -9,7 +9,7 @@
 
 import React, {forwardRef, useCallback, useContext, useMemo} from 'react';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import {FixedSizeList} from 'react-window';
+import {SimpleList} from 'react-window';
 import {ProfilerContext} from './ProfilerContext';
 import NoCommitData from './NoCommitData';
 import CommitFlamegraphListItem from './CommitFlamegraphListItem';
@@ -19,17 +19,8 @@ import {SettingsContext} from '../Settings/SettingsContext';
 
 import styles from './CommitFlamegraph.css';
 
-import type {ChartData, ChartNode} from './FlamegraphChartBuilder';
+import type {ChartData} from './FlamegraphChartBuilder';
 import type {CommitTree} from './types';
-
-export type ItemData = {|
-  chartData: ChartData,
-  scaleX: (value: number, fallbackValue: number) => number,
-  selectedChartNode: ChartNode | null,
-  selectedChartNodeIndex: number,
-  selectFiber: (id: number | null, name: string | null) => void,
-  width: number,
-|};
 
 export default function CommitFlamegraphAutoSizer(_: {||}) {
   const {profilerStore} = useContext(StoreContext);
@@ -121,35 +112,34 @@ function CommitFlamegraph({chartData, commitTree, height, width}: Props) {
     [chartData, selectedFiberID, selectedChartNodeIndex],
   );
 
-  const itemData = useMemo<ItemData>(
-    () => ({
-      chartData,
-      scaleX: scale(
-        0,
-        selectedChartNode !== null
-          ? selectedChartNode.treeBaseDuration
-          : chartData.baseDuration,
-        0,
-        width,
-      ),
-      selectedChartNode,
-      selectedChartNodeIndex,
-      selectFiber,
-      width,
-    }),
-    [chartData, selectedChartNode, selectedChartNodeIndex, selectFiber, width],
-  );
-
   return (
-    <FixedSizeList
+    <SimpleList
       height={height}
       innerElementType={InnerElementType}
       itemCount={chartData.depth}
-      itemData={itemData}
+      itemRenderer={({index, key, style}) => (
+        <CommitFlamegraphListItem
+          chartData={chartData}
+          index={index}
+          key={key}
+          scaleX={scale(
+            0,
+            selectedChartNode !== null
+              ? selectedChartNode.treeBaseDuration
+              : chartData.baseDuration,
+            0,
+            width,
+          )}
+          selectedChartNode={selectedChartNode}
+          selectedChartNodeIndex={selectedChartNodeIndex}
+          selectFiber={selectFiber}
+          style={style}
+          width={width}
+        />
+      )}
       itemSize={lineHeight}
-      width={width}>
-      {CommitFlamegraphListItem}
-    </FixedSizeList>
+      width={width}
+    />
   );
 }
 

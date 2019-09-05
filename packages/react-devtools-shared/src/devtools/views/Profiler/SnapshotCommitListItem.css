@@ -1,7 +1,10 @@
 .Outer {
+  flex: 1 1 auto;
+  min-width: 5px;
   user-select: none;
   cursor: pointer;
   border-bottom: 3px solid transparent;
+  border-right: 1px solid transparent;
   padding-top: 4px;
   padding-bottom: 1px;
   display: flex;

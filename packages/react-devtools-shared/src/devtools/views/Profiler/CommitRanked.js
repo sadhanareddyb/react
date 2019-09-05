@@ -9,7 +9,7 @@
 
 import React, {useCallback, useContext, useMemo} from 'react';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import {FixedSizeList} from 'react-window';
+import {SimpleList} from 'react-window';
 import {ProfilerContext} from './ProfilerContext';
 import NoCommitData from './NoCommitData';
 import CommitRankedListItem from './CommitRankedListItem';
@@ -21,15 +21,6 @@ import styles from './CommitRanked.css';
 
 import type {ChartData} from './RankedChartBuilder';
 import type {CommitTree} from './types';
-
-export type ItemData = {|
-  chartData: ChartData,
-  scaleX: (value: number, fallbackValue: number) => number,
-  selectedFiberID: number | null,
-  selectedFiberIndex: number,
-  selectFiber: (id: number | null, name: string | null) => void,
-  width: number,
-|};
 
 export default function CommitRankedAutoSizer(_: {||}) {
   const {profilerStore} = useContext(StoreContext);
@@ -97,28 +88,27 @@ function CommitRanked({chartData, commitTree, height, width}: Props) {
     [chartData, selectedFiberID],
   );
 
-  const itemData = useMemo<ItemData>(
-    () => ({
-      chartData,
-      scaleX: scale(0, chartData.nodes[selectedFiberIndex].value, 0, width),
-      selectedFiberID,
-      selectedFiberIndex,
-      selectFiber,
-      width,
-    }),
-    [chartData, selectedFiberID, selectedFiberIndex, selectFiber, width],
-  );
-
   return (
-    <FixedSizeList
+    <SimpleList
       height={height}
       innerElementType="svg"
       itemCount={chartData.nodes.length}
-      itemData={itemData}
+      itemRenderer={({index, key, style}) => (
+        <CommitRankedListItem
+          chartData={chartData}
+          index={index}
+          key={key}
+          scaleX={scale(0, chartData.nodes[selectedFiberIndex].value, 0, width)}
+          selectedFiberID={selectedFiberID}
+          selectedFiberIndex={selectedFiberIndex}
+          selectFiber={selectFiber}
+          style={style}
+          width={width}
+        />
+      )}
       itemSize={lineHeight}
-      width={width}>
-      {CommitRankedListItem}
-    </FixedSizeList>
+      width={width}
+    />
   );
 }
 

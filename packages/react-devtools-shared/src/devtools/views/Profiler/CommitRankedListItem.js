@@ -14,17 +14,29 @@ import {getGradientColor} from './utils';
 import ChartNode from './ChartNode';
 import {SettingsContext} from '../Settings/SettingsContext';
 
-import type {ItemData} from './CommitRanked';
+import type {ChartData} from './RankedChartBuilder';
 
 type Props = {
-  data: ItemData,
+  chartData: ChartData,
   index: number,
+  scaleX: (value: number, fallbackValue: number) => number,
+  selectedFiberID: number | null,
+  selectedFiberIndex: number,
+  selectFiber: (id: number | null, name: string | null) => void,
   style: Object,
+  width: number,
 };
 
-function CommitRankedListItem({data, index, style}: Props) {
-  const {chartData, scaleX, selectedFiberIndex, selectFiber, width} = data;
-
+function CommitRankedListItem({
+  chartData,
+  index,
+  scaleX,
+  selectedFiberID,
+  selectedFiberIndex,
+  selectFiber,
+  style,
+  width,
+}: Props) {
   const node = chartData.nodes[index];
 
   const {lineHeight} = useContext(SettingsContext);

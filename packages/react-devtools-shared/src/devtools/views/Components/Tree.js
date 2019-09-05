@@ -10,6 +10,7 @@
 import React, {
   Fragment,
   Suspense,
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -18,7 +19,7 @@ import React, {
   useState,
 } from 'react';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import {FixedSizeList} from 'react-window';
+import {SimpleList} from 'react-window';
 import {TreeDispatcherContext, TreeStateContext} from './TreeContext';
 import {SettingsContext} from '../Settings/SettingsContext';
 import {BridgeContext, StoreContext} from '../context';
@@ -34,14 +35,6 @@ import styles from './Tree.css';
 
 // Never indent more than this number of pixels (even if we have the room).
 const DEFAULT_INDENTATION_SIZE = 12;
-
-export type ItemData = {|
-  numElements: number,
-  isNavigatingWithKeyboard: boolean,
-  lastScrolledIDRef: {current: number | null},
-  onElementMouseEnter: (id: number) => void,
-  treeFocused: boolean,
-|};
 
 type Props = {||};
 
@@ -185,36 +178,30 @@ export default function Tree(props: Props) {
   );
 
   // Focus management.
-  const handleBlur = useCallback(() => setTreeFocused(false), []);
-  const handleFocus = useCallback(
-    () => {
-      setTreeFocused(true);
+  const handleBlur = () => setTreeFocused(false);
+  const handleFocus = () => {
+    setTreeFocused(true);
 
-      if (selectedElementIndex === null && numElements > 0) {
-        dispatch({
-          type: 'SELECT_ELEMENT_AT_INDEX',
-          payload: 0,
-        });
-      }
-    },
-    [dispatch, numElements, selectedElementIndex],
-  );
+    if (selectedElementIndex === null && numElements > 0) {
+      dispatch({
+        type: 'SELECT_ELEMENT_AT_INDEX',
+        payload: 0,
+      });
+    }
+  };
 
-  const handleKeyPress = useCallback(
-    event => {
-      switch (event.key) {
-        case 'Enter':
-        case ' ':
-          if (selectedElementID !== null) {
-            dispatch({type: 'SELECT_OWNER', payload: selectedElementID});
-          }
-          break;
-        default:
-          break;
-      }
-    },
-    [dispatch, selectedElementID],
-  );
+  const handleKeyPress = event => {
+    switch (event.key) {
+      case 'Enter':
+      case ' ':
+        if (selectedElementID !== null) {
+          dispatch({type: 'SELECT_OWNER', payload: selectedElementID});
+        }
+        break;
+      default:
+        break;
+    }
+  };
 
   const highlightNativeElement = useCallback(
     (id: number) => {
@@ -267,53 +254,23 @@ export default function Tree(props: Props) {
   );
 
   // Highlight last hovered element.
-  const handleElementMouseEnter = useCallback(
-    id => {
-      // Ignore hover while we're navigating with keyboard.
-      // This avoids flicker from the hovered nodes under the mouse.
-      if (!isNavigatingWithKeyboard) {
-        highlightNativeElement(id);
-      }
-    },
-    [isNavigatingWithKeyboard, highlightNativeElement],
-  );
+  const handleElementMouseEnter = id => {
+    // Ignore hover while we're navigating with keyboard.
+    // This avoids flicker from the hovered nodes under the mouse.
+    if (!isNavigatingWithKeyboard) {
+      highlightNativeElement(id);
+    }
+  };
 
-  const handleMouseMove = useCallback(() => {
+  const handleMouseMove = () => {
     // We started using the mouse again.
     // This will enable hover styles in individual rows.
     setIsNavigatingWithKeyboard(false);
-  }, []);
+  };
 
-  const handleMouseLeave = useCallback(
-    () => {
-      bridge.send('clearNativeElementHighlight');
-    },
-    [bridge],
-  );
-
-  // Let react-window know to re-render any time the underlying tree data changes.
-  // This includes the owner context, since it controls a filtered view of the tree.
-  const itemData = useMemo<ItemData>(
-    () => ({
-      numElements,
-      isNavigatingWithKeyboard,
-      onElementMouseEnter: handleElementMouseEnter,
-      lastScrolledIDRef,
-      treeFocused,
-    }),
-    [
-      numElements,
-      isNavigatingWithKeyboard,
-      handleElementMouseEnter,
-      lastScrolledIDRef,
-      treeFocused,
-    ],
-  );
-
-  const itemKey = useCallback(
-    (index: number) => store.getElementIDAtIndex(index),
-    [store],
-  );
+  const handleMouseLeave = () => {
+    bridge.send('clearNativeElementHighlight');
+  };
 
   return (
     <TreeFocusedContext.Provider value={treeFocused}>
@@ -343,18 +300,28 @@ export default function Tree(props: Props) {
           <AutoSizer>
             {({height, width}) => (
               // $FlowFixMe https://github.com/facebook/flow/issues/7341
-              <FixedSizeList
+              <SimpleList
                 className={styles.List}
                 height={height}
                 innerElementType={InnerElementType}
                 itemCount={numElements}
-                itemData={itemData}
-                itemKey={itemKey}
+                itemKey={(index: number) => store.getElementIDAtIndex(index)}
+                itemRenderer={({index, key, style}) => (
+                  <ElementView
+                    onElementMouseEnter={handleElementMouseEnter}
+                    index={index}
+                    isNavigatingWithKeyboard={isNavigatingWithKeyboard}
+                    key={key}
+                    numElements={numElements}
+                    lastScrolledIDRef={lastScrolledIDRef}
+                    style={style}
+                    treeFocused={treeFocused}
+                  />
+                )}
                 itemSize={lineHeight}
                 ref={listCallbackRef}
-                width={width}>
-                {ElementView}
-              </FixedSizeList>
+                width={width}
+              />
             )}
           </AutoSizer>
         </div>
@@ -454,7 +421,7 @@ function updateIndentationSizeVar(
   list.style.setProperty('--indentation-size', `${maxIndentationSize}px`);
 }
 
-function InnerElementType({children, style, ...rest}) {
+const InnerElementType = forwardRef(({children, style, ...rest}, ref) => {
   const {ownerID} = useContext(TreeStateContext);
 
   const cachedChildWidths = useMemo<WeakMap<HTMLElement, number>>(
@@ -497,6 +464,17 @@ function InnerElementType({children, style, ...rest}) {
     }
   });
 
+  const compositeRefSetter = useCallback(
+    value => {
+      // react-window ref
+      ref(value);
+
+      // our ref
+      divRef.current = value;
+    },
+    [ref],
+  );
+
   // This style override enables the background color to fill the full visible width,
   // when combined with the CSS tweaks in Element.
   // A lot of options were considered; this seemed the one that requires the least code.
@@ -504,14 +482,14 @@ function InnerElementType({children, style, ...rest}) {
   return (
     <div
       className={styles.InnerElementType}
-      ref={divRef}
+      ref={compositeRefSetter}
       style={style}
       {...rest}>
       <SelectedTreeHighlight />
       {children}
     </div>
   );
-}
+});
 
 function Loading() {
   return <div className={styles.Loading}>Loading...</div>;

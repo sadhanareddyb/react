@@ -7,24 +7,19 @@
  * @flow
  */
 
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import {FixedSizeList} from 'react-window';
+import {SimpleList} from 'react-window';
 import SnapshotCommitListItem from './SnapshotCommitListItem';
-import {minBarWidth} from './constants';
 
 import styles from './SnapshotCommitList.css';
-
-export type ItemData = {|
-  commitDurations: Array<number>,
-  commitTimes: Array<number>,
-  filteredCommitIndices: Array<number>,
-  isMouseDown: boolean,
-  maxDuration: number,
-  selectedCommitIndex: number | null,
-  selectedFilteredCommitIndex: number | null,
-  selectCommitIndex: (index: number) => void,
-|};
 
 type Props = {|
   commitDurations: Array<number>,
@@ -49,8 +44,8 @@ export default function SnapshotCommitList({
         <List
           commitDurations={commitDurations}
           commitTimes={commitTimes}
-          height={height}
           filteredCommitIndices={filteredCommitIndices}
+          height={height}
           selectedCommitIndex={selectedCommitIndex}
           selectedFilteredCommitIndex={selectedFilteredCommitIndex}
           selectCommitIndex={selectCommitIndex}
@@ -64,8 +59,8 @@ export default function SnapshotCommitList({
 type ListProps = {|
   commitDurations: Array<number>,
   commitTimes: Array<number>,
-  height: number,
   filteredCommitIndices: Array<number>,
+  height: number,
   selectedCommitIndex: number | null,
   selectedFilteredCommitIndex: number | null,
   selectCommitIndex: (index: number) => void,
@@ -74,15 +69,15 @@ type ListProps = {|
 
 function List({
   commitDurations,
-  selectedCommitIndex,
   commitTimes,
-  height,
   filteredCommitIndices,
+  height,
+  selectedCommitIndex,
   selectedFilteredCommitIndex,
   selectCommitIndex,
   width,
 }: ListProps) {
-  const listRef = useRef<FixedSizeList<ItemData> | null>(null);
+  const listRef = useRef<SimpleList | null>(null);
   const divRef = useRef<HTMLDivElement | null>(null);
   const prevCommitIndexRef = useRef<number | null>(null);
 
@@ -111,7 +106,7 @@ function List({
   useEffect(
     () => {
       if (divRef.current === null) {
-        return () => {};
+        return;
       }
 
       // It's important to listen to the ownerDocument to support the browser extension.
@@ -124,56 +119,44 @@ function List({
     [divRef, handleMouseUp],
   );
 
-  const itemSize = useMemo(
-    () => Math.max(minBarWidth, width / filteredCommitIndices.length),
-    [filteredCommitIndices, width],
+  useLayoutEffect(
+    () => {
+      if (selectedCommitIndex !== null && divRef.current !== null) {
+        const child = divRef.current.children[selectedCommitIndex];
+        if (child != null && typeof child.scrollIntoView === 'function') {
+          child.scrollIntoView();
+        }
+      }
+    },
+    [selectedCommitIndex, width],
   );
+
   const maxDuration = useMemo(
     () => commitDurations.reduce((max, duration) => Math.max(max, duration), 0),
     [commitDurations],
   );
 
-  // Pass required contextual data down to the ListItem renderer.
-  const itemData = useMemo<ItemData>(
-    () => ({
-      commitDurations,
-      commitTimes,
-      filteredCommitIndices,
-      isMouseDown,
-      maxDuration,
-      selectedCommitIndex,
-      selectedFilteredCommitIndex,
-      selectCommitIndex,
-    }),
-    [
-      commitDurations,
-      commitTimes,
-      filteredCommitIndices,
-      isMouseDown,
-      maxDuration,
-      selectedCommitIndex,
-      selectedFilteredCommitIndex,
-      selectCommitIndex,
-    ],
-  );
-
   return (
     <div
+      className={styles.List}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       ref={divRef}
       style={{height, width}}>
-      <FixedSizeList
-        className={styles.List}
-        layout="horizontal"
-        height={height}
-        itemCount={filteredCommitIndices.length}
-        itemData={itemData}
-        itemSize={itemSize}
-        ref={(listRef: any) /* Flow bug? */}
-        width={width}>
-        {SnapshotCommitListItem}
-      </FixedSizeList>
+      {filteredCommitIndices.map(index => (
+        <SnapshotCommitListItem
+          commitDurations={commitDurations}
+          commitTimes={commitTimes}
+          filteredCommitIndices={filteredCommitIndices}
+          index={index}
+          isMouseDown={isMouseDown}
+          key={index}
+          maxDuration={maxDuration}
+          selectedCommitIndex={selectedCommitIndex}
+          selectedFilteredCommitIndex={selectedFilteredCommitIndex}
+          selectCommitIndex={selectCommitIndex}
+        />
+      ))}
     </div>
   );
 }

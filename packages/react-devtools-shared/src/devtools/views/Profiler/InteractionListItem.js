@@ -13,26 +13,35 @@ import {getGradientColor} from './utils';
 
 import styles from './InteractionListItem.css';
 
-import type {ItemData} from './Interactions';
+import type {ProfilingDataForRootFrontend} from './types';
+import type {ChartData} from './InteractionsChartBuilder';
+import type {TabID} from './ProfilerContext';
 
 type Props = {
-  data: ItemData,
+  chartData: ChartData,
+  dataForRoot: ProfilingDataForRootFrontend,
   index: number,
+  labelWidth: number,
+  scaleX: (value: number, fallbackValue: number) => number,
+  selectedInteractionID: number | null,
+  selectCommitIndex: (id: number | null) => void,
+  selectInteraction: (id: number | null) => void,
+  selectTab: (id: TabID) => void,
   style: Object,
 };
 
-function InteractionListItem({data: itemData, index, style}: Props) {
-  const {
-    chartData,
-    dataForRoot,
-    labelWidth,
-    scaleX,
-    selectedInteractionID,
-    selectCommitIndex,
-    selectInteraction,
-    selectTab,
-  } = itemData;
-
+function InteractionListItem({
+  chartData,
+  dataForRoot,
+  index,
+  labelWidth,
+  scaleX,
+  selectedInteractionID,
+  selectCommitIndex,
+  selectInteraction,
+  selectTab,
+  style,
+}: Props) {
   const {commitData, interactionCommits} = dataForRoot;
   const {interactions, lastInteractionTime, maxCommitDuration} = chartData;
 

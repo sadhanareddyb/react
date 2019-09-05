@@ -13,25 +13,28 @@ import {getGradientColor, formatDuration, formatTime} from './utils';
 
 import styles from './SnapshotCommitListItem.css';
 
-import type {ItemData} from './SnapshotCommitList';
-
 type Props = {
-  data: ItemData,
+  commitDurations: Array<number>,
+  commitTimes: Array<number>,
+  filteredCommitIndices: Array<number>,
   index: number,
-  style: Object,
+  isMouseDown: boolean,
+  maxDuration: number,
+  selectedCommitIndex: number | null,
+  selectedFilteredCommitIndex: number | null,
+  selectCommitIndex: (index: number) => void,
 };
 
-function SnapshotCommitListItem({data: itemData, index, style}: Props) {
-  const {
-    commitDurations,
-    commitTimes,
-    filteredCommitIndices,
-    isMouseDown,
-    maxDuration,
-    selectedCommitIndex,
-    selectCommitIndex,
-  } = itemData;
-
+function SnapshotCommitListItem({
+  commitDurations,
+  commitTimes,
+  filteredCommitIndices,
+  index,
+  isMouseDown,
+  maxDuration,
+  selectedCommitIndex,
+  selectCommitIndex,
+}: Props) {
   index = filteredCommitIndices[index];
 
   const commitDuration = commitDurations[index];
@@ -47,17 +50,12 @@ function SnapshotCommitListItem({data: itemData, index, style}: Props) {
     Math.min(1, Math.max(0, commitDuration / maxDuration)) || 0;
   const isSelected = selectedCommitIndex === index;
 
-  // Leave a 1px gap between snapshots
-  const width = parseFloat(style.width) - 1;
-
   return (
     <div
       className={styles.Outer}
       onClick={handleClick}
       onMouseEnter={isMouseDown ? handleClick : null}
       style={{
-        ...style,
-        width,
         borderBottom: isSelected
           ? '3px solid var(--color-tab-selected-border)'
           : undefined,
