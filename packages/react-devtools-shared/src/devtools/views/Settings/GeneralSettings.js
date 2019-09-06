@@ -17,6 +17,8 @@ export default function GeneralSettings(_: {||}) {
   const {
     displayDensity,
     setDisplayDensity,
+    prerenderMode,
+    setPrerenderMode,
     theme,
     setTheme,
     appendComponentStack,
@@ -26,6 +28,7 @@ export default function GeneralSettings(_: {||}) {
   const updateDisplayDensity = ({currentTarget}) =>
     setDisplayDensity(currentTarget.value);
   const updateTheme = ({currentTarget}) => setTheme(currentTarget.value);
+  const updatePrerenderMode = ({currentTarget}) => setPrerenderMode(currentTarget.value);
   const updateappendComponentStack = ({currentTarget}) =>
     setAppendComponentStack(currentTarget.checked);
 
@@ -60,6 +63,15 @@ export default function GeneralSettings(_: {||}) {
           />{' '}
           Append component stacks to console warnings and errors.
         </label>
+      </div>
+
+      <div className={`${styles.Setting} ${styles.Experimental}`}>
+        <div className={styles.RadioLabel}>Pre-render mode</div>
+        <select className={styles.Select} value={prerenderMode} onChange={updatePrerenderMode}>
+          <option value="none">None</option>
+          <option value="idle">Idle</option>
+          <option value="debounce+idle">Debounce + Idle</option>
+        </select>
       </div>
 
       <div className={styles.ReleaseNotes}>

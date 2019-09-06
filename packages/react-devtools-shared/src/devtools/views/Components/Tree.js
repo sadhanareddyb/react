@@ -58,7 +58,7 @@ export default function Tree(props: Props) {
 
   const [treeFocused, setTreeFocused] = useState<boolean>(false);
 
-  const {lineHeight} = useContext(SettingsContext);
+  const {lineHeight, prerenderMode} = useContext(SettingsContext);
 
   // Make sure a newly selected element is visible in the list.
   // This is helpful for things like the owners list and search.
@@ -306,9 +306,11 @@ export default function Tree(props: Props) {
                 innerElementType={InnerElementType}
                 itemCount={numElements}
                 itemKey={(index: number) => store.getElementIDAtIndex(index)}
-                itemRenderer={({index, key, style}) => (
+                itemRenderer={({domProperties, index, key, ref, style}) => (
                   <ElementView
+                    domProperties={domProperties}
                     onElementMouseEnter={handleElementMouseEnter}
+                    forwardedRef={ref}
                     index={index}
                     isNavigatingWithKeyboard={isNavigatingWithKeyboard}
                     key={key}
@@ -319,6 +321,8 @@ export default function Tree(props: Props) {
                   />
                 )}
                 itemSize={lineHeight}
+                maxNumPrerenderRows={50}
+                prerenderMode={prerenderMode}
                 ref={listCallbackRef}
                 width={width}
               />

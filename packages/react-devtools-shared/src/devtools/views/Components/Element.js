@@ -20,6 +20,8 @@ import type {Element} from './types';
 import styles from './Element.css';
 
 type Props = {
+  domProperties: Object,
+  forwardedRef: React$Ref,
   index: number,
   isNavigatingWithKeyboard: boolean,
   lastScrolledIDRef: {current: number | null},
@@ -30,6 +32,8 @@ type Props = {
 };
 
 export default function ElementView({
+  domProperties,
+  forwardedRef,
   index,
   isNavigatingWithKeyboard,
   lastScrolledIDRef,
@@ -119,8 +123,10 @@ export default function ElementView({
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
+      ref={forwardedRef}
       style={style}
-      data-depth={depth}>
+      data-depth={depth}
+      {...domProperties}>
       {/* This wrapper is used by Tree for measurement purposes. */}
       <div
         className={styles.Wrapper}

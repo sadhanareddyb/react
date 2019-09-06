@@ -14,6 +14,14 @@
   margin-bottom: 0;
 }
 
+.Experimental {
+  width: 100%;
+  background-color: var(--color-background-invalid);
+  color: var(--color-text-invalid);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
 .OptionGroup {
   display: inline-flex;
   flex-direction: row;

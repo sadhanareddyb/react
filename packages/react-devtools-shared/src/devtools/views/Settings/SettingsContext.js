@@ -26,6 +26,7 @@ import type {BrowserTheme} from '../DevTools';
 
 export type DisplayDensity = 'comfortable' | 'compact';
 export type Theme = 'auto' | 'light' | 'dark';
+export type PrerenderMode = 'none' | 'idle' | 'idle+debounce';
 
 type Context = {|
   displayDensity: DisplayDensity,
@@ -40,6 +41,9 @@ type Context = {|
 
   theme: Theme,
   setTheme(value: Theme): void,
+
+  prerenderMode: PrerenderMode,
+  setPrerenderMode: (value: PrerenderMode) => void,
 |};
 
 const SettingsContext = createContext<Context>(((null: any): Context));
@@ -69,6 +73,10 @@ function SettingsContextController({
   const [theme, setTheme] = useLocalStorage<Theme>(
     'React::DevTools::theme',
     'auto',
+  );
+  const [prerenderMode, setPrerenderMode] = useLocalStorage<PrerenderMode>(
+    'React::DevTools::prerenderMode',
+    'none',
   );
   const [appendComponentStack, setAppendComponentStack] = useLocalStorage<
     boolean,
@@ -142,6 +150,8 @@ function SettingsContextController({
     () => ({
       displayDensity,
       setDisplayDensity,
+      prerenderMode,
+      setPrerenderMode,
       theme,
       setTheme,
       appendComponentStack,
@@ -153,7 +163,9 @@ function SettingsContextController({
     }),
     [
       displayDensity,
+      prerenderMode,
       setDisplayDensity,
+      setPrerenderMode,
       setTheme,
       appendComponentStack,
       setAppendComponentStack,
