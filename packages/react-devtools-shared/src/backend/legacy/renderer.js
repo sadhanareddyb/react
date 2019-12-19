@@ -14,8 +14,13 @@ import {
   ElementTypeHostComponent,
   ElementTypeOtherOrUnknown,
 } from 'react-devtools-shared/src/types';
-import {getUID, utfEncodeString, printOperationsArray} from '../../utils';
-import {cleanForBridge, copyToClipboard, copyWithSet} from '../utils';
+import {
+  copyToClipboard,
+  getUID,
+  utfEncodeString,
+  printOperationsArray,
+} from '../../utils';
+import {cleanForBridge, copyWithSet} from '../utils';
 import {getDisplayName, getInObject} from 'react-devtools-shared/src/utils';
 import {
   __DEBUG__,

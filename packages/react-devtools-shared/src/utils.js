@@ -7,6 +7,7 @@
  * @flow
  */
 
+import * as clipboard from 'clipboard-polyfill/dist/clipboard-polyfill.promise';
 import Symbol from 'es6-symbol';
 import LRU from 'lru-cache';
 import {
@@ -628,4 +629,23 @@ export function formatDataForPreview(
         return 'unserializable';
       }
   }
+}
+
+export function copyToClipboard(value: any): void {
+  const safeToCopy = serializeToString(value);
+  clipboard.writeText(safeToCopy === undefined ? 'undefined' : safeToCopy);
+}
+
+export function serializeToString(data: any): string {
+  const cache = new Set();
+  // Use a custom replacer function to protect against circular references.
+  return JSON.stringify(data, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (cache.has(value)) {
+        return;
+      }
+      cache.add(value);
+    }
+    return value;
+  });
 }

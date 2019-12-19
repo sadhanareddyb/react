@@ -26,6 +26,7 @@ import {
   ElementTypeSuspenseList,
 } from 'react-devtools-shared/src/types';
 import {
+  copyToClipboard,
   getDisplayName,
   getDefaultComponentFilters,
   getInObject,
@@ -34,7 +35,7 @@ import {
   utfEncodeString,
 } from 'react-devtools-shared/src/utils';
 import {sessionStorageGetItem} from 'react-devtools-shared/src/storage';
-import {cleanForBridge, copyToClipboard, copyWithSet} from './utils';
+import {cleanForBridge, copyWithSet} from './utils';
 import {
   __DEBUG__,
   SESSION_STORAGE_RELOAD_AND_PROFILE_KEY,

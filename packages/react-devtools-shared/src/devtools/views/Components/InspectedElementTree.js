@@ -7,14 +7,14 @@
  * @flow
  */
 
-import {copy} from 'clipboard-js';
+import {copyToClipboard} from 'react-devtools-shared/src/utils';
 import React, {useCallback, useState} from 'react';
 import Button from '../Button';
 import ButtonIcon from '../ButtonIcon';
 import KeyValue from './KeyValue';
 import EditableName from './EditableName';
 import EditableValue from './EditableValue';
-import {alphaSortEntries, serializeDataForCopy} from '../utils';
+import {alphaSortEntries, prepareDataForCopy} from '../utils';
 import styles from './InspectedElementTree.css';
 
 import type {InspectPath} from './SelectedElement';
@@ -51,7 +51,7 @@ export default function InspectedElementTree({
   const isEmpty = entries === null || entries.length === 0;
 
   const handleCopy = useCallback(
-    () => copy(serializeDataForCopy(((data: any): Object))),
+    () => copyToClipboard(prepareDataForCopy(((data: any): Object))),
     [data],
   );
 

@@ -7,7 +7,7 @@
  * @flow
  */
 
-import {copy} from 'clipboard-js';
+import {copyToClipboard} from 'react-devtools-shared/src/utils';
 import React, {Fragment, useCallback, useContext} from 'react';
 import {TreeDispatcherContext, TreeStateContext} from './TreeContext';
 import {BridgeContext, ContextMenuContext, StoreContext} from '../context';
@@ -504,7 +504,7 @@ type SourceProps = {|
 |};
 
 function Source({fileName, lineNumber}: SourceProps) {
-  const handleCopy = () => copy(`${fileName}:${lineNumber}`);
+  const handleCopy = () => copyToClipboard(`${fileName}:${lineNumber}`);
   return (
     <div className={styles.Source}>
       <div className={styles.SourceHeaderRow}>

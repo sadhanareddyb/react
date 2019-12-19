@@ -7,8 +7,8 @@
  * @flow
  */
 
-import {copy} from 'clipboard-js';
 import React, {useCallback, useContext, useRef, useState} from 'react';
+import {copyToClipboard} from 'react-devtools-shared/src/utils';
 import {BridgeContext, StoreContext} from '../context';
 import Button from '../Button';
 import ButtonIcon from '../ButtonIcon';
@@ -16,7 +16,7 @@ import EditableValue from './EditableValue';
 import ExpandCollapseToggle from './ExpandCollapseToggle';
 import {InspectedElementContext} from './InspectedElementContext';
 import KeyValue from './KeyValue';
-import {serializeHooksForCopy} from '../utils';
+import {prepareHooksForCopy} from '../utils';
 import styles from './HooksTree.css';
 import useContextMenu from '../../ContextMenu/useContextMenu';
 import {meta} from '../../../hydration';
@@ -38,9 +38,10 @@ export function HooksTreeView({canEditHooks, hooks, id}: HooksTreeViewProps) {
     },
     [getInspectedElementPath, id],
   );
-  const handleCopy = useCallback(() => copy(serializeHooksForCopy(hooks)), [
-    hooks,
-  ]);
+  const handleCopy = useCallback(
+    () => copyToClipboard(prepareHooksForCopy(hooks)),
+    [hooks],
+  );
 
   if (hooks === null) {
     return null;

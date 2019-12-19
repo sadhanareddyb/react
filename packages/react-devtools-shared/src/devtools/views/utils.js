@@ -116,19 +116,19 @@ function sanitize(data: Object): void {
   }
 }
 
-export function serializeDataForCopy(props: Object): string {
+export function prepareDataForCopy(props: Object): Object | null {
   const cloned = Object.assign({}, props);
 
   sanitize(cloned);
 
   try {
-    return JSON.stringify(cloned, null, 2);
+    return cloned;
   } catch (error) {
-    return '';
+    return null;
   }
 }
 
-export function serializeHooksForCopy(hooks: HooksTree | null): string {
+export function prepareHooksForCopy(hooks: HooksTree | null): Object | null {
   // $FlowFixMe "HooksTree is not an object"
   const cloned = Object.assign([], hooks);
 
@@ -149,9 +149,9 @@ export function serializeHooksForCopy(hooks: HooksTree | null): string {
   sanitize(cloned);
 
   try {
-    return JSON.stringify(cloned, null, 2);
+    return cloned;
   } catch (error) {
-    return '';
+    return null;
   }
 }
 
