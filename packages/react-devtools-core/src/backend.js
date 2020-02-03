@@ -20,12 +20,16 @@ import type {ComponentFilter} from 'react-devtools-shared/src/types';
 import type {DevToolsHook} from 'react-devtools-shared/src/backend/types';
 import type {ResolveNativeStyle} from 'react-devtools-shared/src/backend/NativeStyleEditor/setupNativeStyleEditor';
 
+type IsActiveFn = () => boolean;
+
 type ConnectOptions = {
   host?: string,
-  nativeStyleEditorValidAttributes?: $ReadOnlyArray<string>,
+  isAppActive?: IsActiveFn,
+  maxConnectionAttempts?: number,
+  nativeStyleEditorValidAttributes?: ?$ReadOnlyArray<string>,
   port?: number,
-  resolveRNStyle?: ResolveNativeStyle,
-  isAppActive?: () => boolean,
+  resolveRNStyle?: ?ResolveNativeStyle,
+  retryInterval?: number,
   websocket?: ?WebSocket,
   ...
 };
@@ -47,26 +51,61 @@ function debug(methodName: string, ...args) {
   }
 }
 
-export function connectToDevTools(options: ?ConnectOptions) {
-  const {
-    host = 'localhost',
-    nativeStyleEditorValidAttributes,
-    port = 8097,
-    websocket,
-    resolveRNStyle = null,
-    isAppActive = () => true,
-  } = options || {};
+export function connectToDevTools(options: ConnectOptions = {}) {
+  connectToDevToolsInner({
+    ...options,
+    remainingConnectionAttempts:
+      options.maxConnectionAttempts || Number.MAX_VALUE,
+  });
+}
 
+type ConnectOptionsInner = {
+  host: string,
+  isAppActive: IsActiveFn,
+  maxConnectionAttempts: number,
+  nativeStyleEditorValidAttributes?: ?$ReadOnlyArray<string>,
+  port: number,
+  remainingConnectionAttempts: number,
+  resolveRNStyle?: ?ResolveNativeStyle,
+  retryInterval: number,
+  websocket: ?WebSocket,
+};
+
+function connectToDevToolsInner({
+  host = 'localhost',
+  isAppActive = () => true,
+  maxConnectionAttempts = Number.MAX_VALUE,
+  nativeStyleEditorValidAttributes,
+  port = 8097,
+  remainingConnectionAttempts,
+  resolveRNStyle,
+  retryInterval = 2000,
+  websocket,
+}: ConnectOptionsInner): void {
   let retryTimeoutID: TimeoutID | null = null;
 
   function scheduleRetry() {
     if (retryTimeoutID === null) {
       // Two seconds because RN had issues with quick retries.
-      retryTimeoutID = setTimeout(() => connectToDevTools(options), 2000);
+      retryTimeoutID = setTimeout(
+        () =>
+          connectToDevToolsInner({
+            host,
+            isAppActive,
+            maxConnectionAttempts,
+            nativeStyleEditorValidAttributes,
+            port,
+            remainingConnectionAttempts,
+            resolveRNStyle,
+            retryInterval,
+            websocket,
+          }),
+        retryInterval,
+      );
     }
   }
 
-  if (!isAppActive()) {
+  if (!isAppActive() && remainingConnectionAttempts > 0) {
     // If the app is in background, maybe retry later.
     // Don't actually attempt to connect until we're in foreground.
     scheduleRetry();
@@ -115,7 +154,10 @@ export function connectToDevTools(options: ?ConnectOptions) {
             bridge.shutdown();
           }
 
-          scheduleRetry();
+          if (remainingConnectionAttempts > 0) {
+            remainingConnectionAttempts--;
+            scheduleRetry();
+          }
         }
       },
     });
@@ -238,6 +280,7 @@ export function connectToDevTools(options: ?ConnectOptions) {
       bridge.emit('shutdown');
     }
 
+    remainingConnectionAttempts = maxConnectionAttempts;
     scheduleRetry();
   }
 
@@ -246,7 +289,10 @@ export function connectToDevTools(options: ?ConnectOptions) {
       debug('WebSocket.onerror');
     }
 
-    scheduleRetry();
+    if (remainingConnectionAttempts > 0) {
+      remainingConnectionAttempts--;
+      scheduleRetry();
+    }
   }
 
   function handleMessage(event) {

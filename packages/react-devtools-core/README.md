@@ -19,11 +19,15 @@ Run `connectToDevTools()` in the same context as React to set up a connection to
 Be sure to run this function *before* importing e.g. `react`, `react-dom`, `react-native`.
 
 The `config` object may contain:
-* `host: string` (defaults to "localhost") - Websocket will connect to this host.
-* `port: number` (defaults to `8097`) - Websocket will connect to this port.
-* `websocket: Websocket` - Custom websocked to use. Overrides `host` and `port` settings if provided.
-* `resolveRNStyle: (style: number) => ?Object` - Used by the React Native style plug-in.
-* `isAppActive: () => boolean` - If provided, DevTools will poll this method and wait until it returns true before connecting to React.
+| Name                    | Type                         | Default            | Description                                                                                            |
+|-------------------------|------------------------------|--------------------|--------------------------------------------------------------------------------------------------------|
+| `host`                  | `string`                     | `"localhost"`      | Websocket will connect to this host.                                                                   |
+| `port`                  | `number`                     | `8097`             | Websocket will connect to this port.                                                                   |
+| `websocket`             | `WebSocket`                  |                    | Custom `WebSocket` to use. Overrides `host` and `port` settings if provided.                           |
+| `isAppActive`           | `() => boolean`              |                    | If provided, DevTools will poll this method and wait until it returns true before connecting to React. |
+| `retryInterval`         | `number`                     | `2000`             | Amount of time (in ms) to wait before retrying a failed connection.                                    |
+| `maxConnectionAttempts` | `number`                     | `Number.MAX_VALUE` | Maximum number of times to try connecting to DevTools before giving up.                                |
+| `resolveRNStyle`        | `(style: number) => ?Object` |                    | Used by the React Native style plug-in.                                                                |
 
 ## `react-devtools-core/standalone`
 
