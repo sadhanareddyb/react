@@ -14,9 +14,9 @@
  * environment.
  */
 
-import type {ReactModelRoot} from 'react-flight/inline-typed';
+import type {ReactModelRoot} from 'react-client/flight';
 
-import ReactFlightClient from 'react-flight';
+import ReactFlightClient from 'react-client/flight';
 
 type Source = Array<string>;
 
@@ -24,7 +24,7 @@ const {
   createResponse,
   getModelRoot,
   processStringChunk,
-  complete,
+  close,
 } = ReactFlightClient({
   supportsBinaryStreams: false,
 });
@@ -34,10 +34,8 @@ function read<T>(source: Source): ReactModelRoot<T> {
   for (let i = 0; i < source.length; i++) {
     processStringChunk(response, source[i], 0);
   }
-  complete(response);
+  close(response);
   return getModelRoot(response);
 }
 
-export default {
-  read,
-};
+export {read};

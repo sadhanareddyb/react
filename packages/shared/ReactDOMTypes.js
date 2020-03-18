@@ -30,6 +30,7 @@ export type ReactDOMResponderEvent = {
   pointerType: PointerType,
   target: Element | Document,
   type: string,
+  ...
 };
 
 export type ReactDOMEventResponder = ReactEventResponder<
@@ -72,4 +73,24 @@ export type ReactDOMResponderContext = {
   // Used for controller components
   enqueueStateRestore(Element | Document): void,
   getResponderNode(): Element | null,
+  ...
 };
+
+export type ReactDOMListenerEvent = {|
+  capture: boolean,
+  passive: void | boolean,
+  priority: EventPriority,
+  type: string,
+|};
+
+export type ReactDOMListenerMap = {|
+  clear: () => void,
+  setListener: (target: EventTarget, callback: ?(Event) => void) => void,
+|};
+
+export type ReactDOMListener = {|
+  callback: Event => void,
+  destroy: Node => void,
+  event: ReactDOMListenerEvent,
+  target: EventTarget,
+|};

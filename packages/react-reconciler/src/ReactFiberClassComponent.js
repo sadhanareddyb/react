@@ -11,7 +11,7 @@ import type {Fiber} from './ReactFiber';
 import type {ExpirationTime} from './ReactFiberExpirationTime';
 import type {UpdateQueue} from './ReactUpdateQueue';
 
-import React from 'react';
+import * as React from 'react';
 import {Update, Snapshot} from 'shared/ReactSideEffectTags';
 import {
   debugRenderPhaseSideEffectsForStrictMode,
@@ -21,7 +21,7 @@ import {
 } from 'shared/ReactFeatureFlags';
 import {workScheduled} from 'shared/RootEventsProfiling';
 import ReactStrictModeWarnings from './ReactStrictModeWarnings';
-import {isMounted} from 'react-reconciler/reflection';
+import {isMounted} from 'react-reconciler/src/ReactFiberTreeReflection';
 import {get as getInstance, set as setInstance} from 'shared/ReactInstanceMap';
 import shallowEqual from 'shared/shallowEqual';
 import getComponentName from 'shared/getComponentName';
@@ -55,7 +55,7 @@ import {readContext} from './ReactFiberNewContext';
 import {
   requestCurrentTimeForUpdate,
   computeExpirationForFiber,
-  scheduleWork,
+  scheduleUpdateOnFiber,
 } from './ReactFiberWorkLoop';
 import {requestCurrentSuspenseConfig} from './ReactFiberSuspenseConfig';
 
@@ -202,7 +202,7 @@ const classComponentUpdater = {
     }
 
     enqueueUpdate(fiber, update);
-    scheduleWork(fiber, expirationTime);
+    scheduleUpdateOnFiber(fiber, expirationTime);
 
     if (enableRootEventMarks) {
       workScheduled('state-update', fiber);
@@ -230,7 +230,7 @@ const classComponentUpdater = {
     }
 
     enqueueUpdate(fiber, update);
-    scheduleWork(fiber, expirationTime);
+    scheduleUpdateOnFiber(fiber, expirationTime);
 
     if (enableRootEventMarks) {
       workScheduled('state-update', fiber);
@@ -257,7 +257,7 @@ const classComponentUpdater = {
     }
 
     enqueueUpdate(fiber, update);
-    scheduleWork(fiber, expirationTime);
+    scheduleUpdateOnFiber(fiber, expirationTime);
 
     if (enableRootEventMarks) {
       workScheduled('state-update', fiber);
@@ -276,6 +276,15 @@ function checkShouldComponentUpdate(
 ) {
   const instance = workInProgress.stateNode;
   if (typeof instance.shouldComponentUpdate === 'function') {
+    if (__DEV__) {
+      if (
+        debugRenderPhaseSideEffectsForStrictMode &&
+        workInProgress.mode & StrictMode
+      ) {
+        // Invoke the function an extra time to help detect side-effects.
+        instance.shouldComponentUpdate(newProps, newState, nextContext);
+      }
+    }
     startPhaseTimer(workInProgress, 'shouldComponentUpdate');
     const shouldUpdate = instance.shouldComponentUpdate(
       newProps,
@@ -540,7 +549,6 @@ function constructClassInstance(
   workInProgress: Fiber,
   ctor: any,
   props: any,
-  renderExpirationTime: ExpirationTime,
 ): any {
   let isLegacyContextConsumer = false;
   let unmaskedContext = emptyContextObject;

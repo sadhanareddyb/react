@@ -56,7 +56,6 @@ import {
   markLegacyErrorBoundaryAsFailed,
   isAlreadyFailedLegacyErrorBoundary,
   pingSuspendedRoot,
-  checkForWrongSuspensePriorityInDEV,
 } from './ReactFiberWorkLoop';
 
 import {Sync} from './ReactFiberExpirationTime';
@@ -206,14 +205,14 @@ function throwException(
       // to render it.
       let currentSource = sourceFiber.alternate;
       if (currentSource) {
+        sourceFiber.updateQueue = currentSource.updateQueue;
         sourceFiber.memoizedState = currentSource.memoizedState;
         sourceFiber.expirationTime = currentSource.expirationTime;
       } else {
+        sourceFiber.updateQueue = null;
         sourceFiber.memoizedState = null;
       }
     }
-
-    checkForWrongSuspensePriorityInDEV(sourceFiber);
 
     let hasInvisibleParentBoundary = hasSuspenseContext(
       suspenseStackCursor.current,

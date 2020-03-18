@@ -5,7 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {getLowestCommonAncestor, isAncestor} from 'shared/ReactTreeTraversal';
+import {
+  getLowestCommonAncestor,
+  isAncestor,
+  getParentInstance,
+  traverseTwoPhase,
+} from 'shared/ReactTreeTraversal';
 
 import {
   executeDirectDispatch,
@@ -13,11 +18,7 @@ import {
   executeDispatchesInOrderStopAtTrue,
   getInstanceFromNode,
 } from './EventPluginUtils';
-import {
-  accumulateDirectDispatches,
-  accumulateTwoPhaseDispatches,
-  accumulateTwoPhaseDispatchesSkipTarget,
-} from './EventPropagators';
+import {accumulateDirectDispatches} from './EventPropagators';
 import ResponderSyntheticEvent from './ResponderSyntheticEvent';
 import ResponderTouchHistoryStore from './ResponderTouchHistoryStore';
 import accumulate from './accumulate';
@@ -32,6 +33,9 @@ import {
   moveDependencies,
   endDependencies,
 } from './ResponderTopLevelEventTypes';
+import getListener from './getListener';
+import accumulateInto from './accumulateInto';
+import forEachAccumulated from './forEachAccumulated';
 
 /**
  * Instance of element that should respond to touch/move types of interactions,
@@ -150,6 +154,54 @@ const eventTypes = {
     dependencies: [],
   },
 };
+
+// Start of inline: the below functions were inlined from
+// EventPropagator.js, as they deviated from ReactDOM's newer
+// implementations.
+function listenerAtPhase(inst, event, propagationPhase: PropagationPhases) {
+  const registrationName =
+    event.dispatchConfig.phasedRegistrationNames[propagationPhase];
+  return getListener(inst, registrationName);
+}
+
+function accumulateDirectionalDispatches(inst, phase, event) {
+  if (__DEV__) {
+    if (!inst) {
+      console.error('Dispatching inst must not be null');
+    }
+  }
+  const listener = listenerAtPhase(inst, event, phase);
+  if (listener) {
+    event._dispatchListeners = accumulateInto(
+      event._dispatchListeners,
+      listener,
+    );
+    event._dispatchInstances = accumulateInto(event._dispatchInstances, inst);
+  }
+}
+
+function accumulateTwoPhaseDispatchesSingleSkipTarget(event) {
+  if (event && event.dispatchConfig.phasedRegistrationNames) {
+    const targetInst = event._targetInst;
+    const parentInst = targetInst ? getParentInstance(targetInst) : null;
+    traverseTwoPhase(parentInst, accumulateDirectionalDispatches, event);
+  }
+}
+
+function accumulateTwoPhaseDispatchesSkipTarget(events) {
+  forEachAccumulated(events, accumulateTwoPhaseDispatchesSingleSkipTarget);
+}
+
+function accumulateTwoPhaseDispatchesSingle(event) {
+  if (event && event.dispatchConfig.phasedRegistrationNames) {
+    traverseTwoPhase(event._targetInst, accumulateDirectionalDispatches, event);
+  }
+}
+
+function accumulateTwoPhaseDispatches(events) {
+  forEachAccumulated(events, accumulateTwoPhaseDispatchesSingle);
+}
+// End of inline
 
 /**
  *
@@ -282,7 +334,7 @@ to return true:wantsResponderID|                            |
                                +                            + */
 
 /**
- * A note about event ordering in the `EventPluginHub`.
+ * A note about event ordering in the `EventPluginRegistry`.
  *
  * Suppose plugins are injected in the following order:
  *
@@ -301,7 +353,7 @@ to return true:wantsResponderID|                            |
  * - When returned from `extractEvents`, deferred-dispatched events contain an
  *   "accumulation" of deferred dispatches.
  * - These deferred dispatches are accumulated/collected before they are
- *   returned, but processed at a later time by the `EventPluginHub` (hence the
+ *   returned, but processed at a later time by the `EventPluginRegistry` (hence the
  *   name deferred).
  *
  * In the process of returning their deferred-dispatched events, event plugins
@@ -325,9 +377,9 @@ to return true:wantsResponderID|                            |
  * - `R`s on-demand events (if any)   (dispatched by `R` on-demand)
  * - `S`s on-demand events (if any)   (dispatched by `S` on-demand)
  * - `C`s on-demand events (if any)   (dispatched by `C` on-demand)
- * - `R`s extracted events (if any)   (dispatched by `EventPluginHub`)
- * - `S`s extracted events (if any)   (dispatched by `EventPluginHub`)
- * - `C`s extracted events (if any)   (dispatched by `EventPluginHub`)
+ * - `R`s extracted events (if any)   (dispatched by `EventPluginRegistry`)
+ * - `S`s extracted events (if any)   (dispatched by `EventPluginRegistry`)
+ * - `C`s extracted events (if any)   (dispatched by `EventPluginRegistry`)
  *
  * In the case of `ResponderEventPlugin`: If the `startShouldSetResponder`
  * on-demand dispatch returns `true` (and some other details are satisfied) the
@@ -336,9 +388,9 @@ to return true:wantsResponderID|                            |
  * will appear as follows:
  *
  * - `startShouldSetResponder` (`ResponderEventPlugin` dispatches on-demand)
- * - `touchStartCapture`       (`EventPluginHub` dispatches as usual)
- * - `touchStart`              (`EventPluginHub` dispatches as usual)
- * - `responderGrant/Reject`   (`EventPluginHub` dispatches as usual)
+ * - `touchStartCapture`       (`EventPluginRegistry` dispatches as usual)
+ * - `touchStart`              (`EventPluginRegistry` dispatches as usual)
+ * - `responderGrant/Reject`   (`EventPluginRegistry` dispatches as usual)
  */
 
 function setResponderAndExtractTransfer(
@@ -350,10 +402,10 @@ function setResponderAndExtractTransfer(
   const shouldSetEventType = isStartish(topLevelType)
     ? eventTypes.startShouldSetResponder
     : isMoveish(topLevelType)
-      ? eventTypes.moveShouldSetResponder
-      : topLevelType === TOP_SELECTION_CHANGE
-        ? eventTypes.selectionChangeShouldSetResponder
-        : eventTypes.scrollShouldSetResponder;
+    ? eventTypes.moveShouldSetResponder
+    : topLevelType === TOP_SELECTION_CHANGE
+    ? eventTypes.selectionChangeShouldSetResponder
+    : eventTypes.scrollShouldSetResponder;
 
   // TODO: stop one short of the current responder.
   const bubbleShouldSetFrom = !responderInst
@@ -550,10 +602,10 @@ const ResponderEventPlugin = {
     const incrementalTouch = isResponderTouchStart
       ? eventTypes.responderStart
       : isResponderTouchMove
-        ? eventTypes.responderMove
-        : isResponderTouchEnd
-          ? eventTypes.responderEnd
-          : null;
+      ? eventTypes.responderMove
+      : isResponderTouchEnd
+      ? eventTypes.responderEnd
+      : null;
 
     if (incrementalTouch) {
       const gesture = ResponderSyntheticEvent.getPooled(
@@ -577,8 +629,8 @@ const ResponderEventPlugin = {
     const finalTouch = isResponderTerminate
       ? eventTypes.responderTerminate
       : isResponderRelease
-        ? eventTypes.responderRelease
-        : null;
+      ? eventTypes.responderRelease
+      : null;
     if (finalTouch) {
       const finalEvent = ResponderSyntheticEvent.getPooled(
         finalTouch,

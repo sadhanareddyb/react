@@ -26,6 +26,7 @@ import type {
   SuspenseListRenderState,
 } from './ReactFiberSuspenseComponent';
 import type {SuspenseContext} from './ReactFiberSuspenseContext';
+import {resetWorkInProgressVersions as resetMutableSourceWorkInProgressVersions} from './ReactMutableSource';
 
 import {now} from './SchedulerWithReactIntegration';
 
@@ -51,7 +52,7 @@ import {
   IncompleteClassComponent,
   FundamentalComponent,
   ScopeComponent,
-  Chunk,
+  Block,
 } from 'shared/ReactWorkTags';
 import {NoMode, BlockingMode} from './ReactTypeOfMode';
 import {
@@ -119,7 +120,7 @@ import {
   enableDeprecatedFlareAPI,
   enableFundamentalAPI,
   enableScopeAPI,
-  enableChunksAPI,
+  enableBlocksAPI,
 } from 'shared/ReactFeatureFlags';
 import {
   markSpawnedWork,
@@ -435,8 +436,8 @@ if (supportsMutation) {
     const portalOrRoot: {
       containerInfo: Container,
       pendingChildren: ChildSet,
-    } =
-      workInProgress.stateNode;
+      ...
+    } = workInProgress.stateNode;
     const childrenUnchanged = workInProgress.firstEffect === null;
     if (childrenUnchanged) {
       // No changes, just reuse the existing instance.
@@ -662,6 +663,7 @@ function completeWork(
     case HostRoot: {
       popHostContainer(workInProgress);
       popTopLevelLegacyContextObject(workInProgress);
+      resetMutableSourceWorkInProgressVersions();
       const fiberRoot = (workInProgress.stateNode: FiberRoot);
       if (fiberRoot.pendingContext) {
         fiberRoot.context = fiberRoot.pendingContext;
@@ -1201,8 +1203,7 @@ function completeWork(
         let fundamentalInstance: ReactFundamentalComponentInstance<
           any,
           any,
-        > | null =
-          workInProgress.stateNode;
+        > | null = workInProgress.stateNode;
 
         if (fundamentalInstance === null) {
           const getInitialState = fundamentalImpl.getInitialState;
@@ -1296,8 +1297,8 @@ function completeWork(
       }
       break;
     }
-    case Chunk:
-      if (enableChunksAPI) {
+    case Block:
+      if (enableBlocksAPI) {
         return null;
       }
       break;

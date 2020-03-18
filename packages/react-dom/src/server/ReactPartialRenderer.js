@@ -9,20 +9,16 @@
 
 import type {ThreadID} from './ReactThreadIDAllocator';
 import type {ReactElement} from 'shared/ReactElementType';
-import type {LazyComponent} from 'shared/ReactLazyComponent';
+import type {LazyComponent} from 'react/src/ReactLazy';
 import type {ReactProvider, ReactContext} from 'shared/ReactTypes';
 
-import React from 'react';
+import * as React from 'react';
 import invariant from 'shared/invariant';
 import getComponentName from 'shared/getComponentName';
 import describeComponentFrame from 'shared/describeComponentFrame';
 import ReactSharedInternals from 'shared/ReactSharedInternals';
-import {
-  Resolved,
-  Rejected,
-  Pending,
-  initializeLazyComponentType,
-} from 'shared/ReactLazyComponent';
+import {initializeLazyComponentType} from 'shared/ReactLazyComponent';
+import {Resolved, Rejected, Pending} from 'shared/ReactLazyStatusTags';
 import {
   warnAboutDeprecatedLifecycles,
   disableLegacyContext,
@@ -701,11 +697,10 @@ type Frame = {
   childIndex: number,
   context: Object,
   footer: string,
+  ...
 };
 
-type FrameDev = Frame & {
-  debugElementStack: Array<ReactElement>,
-};
+type FrameDev = Frame & {|debugElementStack: Array<ReactElement>|};
 
 class ReactDOMServerRenderer {
   threadID: ThreadID;
@@ -1578,7 +1573,10 @@ class ReactDOMServerRenderer {
     const innerMarkup = getNonChildrenInnerMarkup(props);
     if (innerMarkup != null) {
       children = [];
-      if (newlineEatingTags[tag] && innerMarkup.charAt(0) === '\n') {
+      if (
+        newlineEatingTags.hasOwnProperty(tag) &&
+        innerMarkup.charAt(0) === '\n'
+      ) {
         // text/html ignores the first character in these tags if it's a newline
         // Prefer to break application/xml over text/html (for now) by adding
         // a newline specifically to get eaten by the parser. (Alternately for

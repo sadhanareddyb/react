@@ -337,12 +337,9 @@ function runActTests(label, render, unmount, rerender) {
               await null;
               setState(x => x + 1);
             }
-            React.useEffect(
-              () => {
-                ticker();
-              },
-              [Math.min(state, 4)],
-            );
+            React.useEffect(() => {
+              ticker();
+            }, [Math.min(state, 4)]);
             return state;
           }
 
@@ -521,13 +518,10 @@ function runActTests(label, render, unmount, rerender) {
             await null;
             setState(x => x + 1);
           }
-          React.useEffect(
-            () => {
-              Scheduler.unstable_yieldValue(state);
-              ticker();
-            },
-            [Math.min(state, 4)],
-          );
+          React.useEffect(() => {
+            Scheduler.unstable_yieldValue(state);
+            ticker();
+          }, [Math.min(state, 4)]);
           return state;
         }
 
@@ -728,6 +722,7 @@ function runActTests(label, render, unmount, rerender) {
 
     describe('suspense', () => {
       if (__DEV__ && __EXPERIMENTAL__) {
+        // todo - remove __DEV__ check once we start using testing builds
         it('triggers fallbacks if available', async () => {
           let resolved = false;
           let resolve;

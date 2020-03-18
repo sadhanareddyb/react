@@ -45,6 +45,10 @@ export type TimeoutHandle = TimeoutID;
 export type NoTimeout = -1;
 export type EventResponder = any;
 
+export type ReactListenerEvent = Object;
+export type ReactListenerMap = Object;
+export type ReactListener = Object;
+
 export * from 'shared/HostConfigWithNoPersistence';
 export * from 'shared/HostConfigWithNoHydration';
 
@@ -195,7 +199,7 @@ export function prepareUpdate(
   newProps: Props,
   rootContainerInstance: Container,
   hostContext: Object,
-): null | {} {
+): null | {...} {
   return UPDATE_SIGNAL;
 }
 
@@ -246,7 +250,7 @@ export const supportsMutation = true;
 
 export function commitUpdate(
   instance: Instance,
-  updatePayload: {},
+  updatePayload: {...},
   type: string,
   oldProps: Props,
   newProps: Props,
@@ -316,7 +320,9 @@ export function DEPRECATED_unmountResponderInstance(
   // noop
 }
 
-export function getFundamentalComponentInstance(fundamentalInstance): Instance {
+export function getFundamentalComponentInstance(
+  fundamentalInstance: ReactFundamentalComponentInstance<any, any>,
+): Instance {
   const {impl, props, state} = fundamentalInstance;
   return impl.getInstance(null, props, state);
 }
@@ -370,6 +376,22 @@ export function getInstanceFromNode(mockNode: Object) {
   return null;
 }
 
-export function beforeRemoveInstance(instance) {
+export function beforeRemoveInstance(instance: any) {
   // noop
+}
+
+export function registerEvent(event: any, rootContainerInstance: Container) {
+  throw new Error('Not yet implemented.');
+}
+
+export function mountEventListener(listener: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function unmountEventListener(listener: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function validateEventListenerTarget(target: any, listener: any) {
+  throw new Error('Not yet implemented.');
 }

@@ -138,6 +138,7 @@ describe('ReactStrictMode', () => {
         'getDerivedStateFromProps',
         'getDerivedStateFromProps',
         'shouldComponentUpdate',
+        'shouldComponentUpdate',
         'render',
         'render',
         'componentDidUpdate',
@@ -165,6 +166,7 @@ describe('ReactStrictMode', () => {
       expect(log).toEqual([
         'getDerivedStateFromProps',
         'getDerivedStateFromProps',
+        'shouldComponentUpdate',
         'shouldComponentUpdate',
       ]);
     } else {
@@ -283,6 +285,7 @@ describe('ReactStrictMode', () => {
         'getDerivedStateFromProps',
         'getDerivedStateFromProps',
         'shouldComponentUpdate',
+        'shouldComponentUpdate',
         'render',
         'render',
         'componentDidUpdate',
@@ -304,6 +307,7 @@ describe('ReactStrictMode', () => {
       expect(log).toEqual([
         'getDerivedStateFromProps',
         'getDerivedStateFromProps',
+        'shouldComponentUpdate',
         'shouldComponentUpdate',
       ]);
     } else {
@@ -535,13 +539,17 @@ Please update the following components: Parent`,
       const container = document.createElement('div');
       const root = ReactDOM.createRoot(container);
       root.render(<AsyncRoot foo={true} />);
-      expect(() => Scheduler.unstable_flushAll()).toErrorDev(
+      expect(() =>
+        Scheduler.unstable_flushAll(),
+      ).toErrorDev(
         'Using UNSAFE_componentWillMount in strict mode is not recommended',
         {withoutStack: true},
       );
 
       root.render(<AsyncRoot foo={false} />);
-      expect(() => Scheduler.unstable_flushAll()).toErrorDev(
+      expect(() =>
+        Scheduler.unstable_flushAll(),
+      ).toErrorDev(
         'Using UNSAFE_componentWillMount in strict mode is not recommended',
         {withoutStack: true},
       );
@@ -592,7 +600,9 @@ Please update the following components: Parent`,
 
     const container = document.createElement('div');
 
-    expect(() => ReactDOM.render(<SyncRoot />, container)).toErrorDev(
+    expect(() =>
+      ReactDOM.render(<SyncRoot />, container),
+    ).toErrorDev(
       'Using UNSAFE_componentWillReceiveProps in strict mode is not recommended',
       {withoutStack: true},
     );
@@ -872,6 +882,7 @@ describe('context legacy', () => {
         'FunctionalLegacyContextConsumer, LegacyContextConsumer, LegacyContextProvider' +
         '\n\nLearn more about this warning here: ' +
         'https://fb.me/react-legacy-context' +
+        '\n    in LegacyContextProvider (at **)' +
         '\n    in StrictMode (at **)' +
         '\n    in div (at **)' +
         '\n    in Root (at **)',

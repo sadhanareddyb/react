@@ -17,6 +17,7 @@ describe('ReactSuspenseWithNoopRenderer', () => {
 
   beforeEach(() => {
     jest.resetModules();
+
     ReactFeatureFlags = require('shared/ReactFeatureFlags');
     ReactFeatureFlags.debugRenderPhaseSideEffectsForStrictMode = false;
     ReactFeatureFlags.replayFailedUnitOfWorkWithInvokeGuardedCallback = false;
@@ -28,19 +29,22 @@ describe('ReactSuspenseWithNoopRenderer', () => {
     ReactCache = require('react-cache');
     Suspense = React.Suspense;
 
-    TextResource = ReactCache.unstable_createResource(([text, ms = 0]) => {
-      return new Promise((resolve, reject) =>
-        setTimeout(() => {
-          if (textResourceShouldFail) {
-            Scheduler.unstable_yieldValue(`Promise rejected [${text}]`);
-            reject(new Error('Failed to load: ' + text));
-          } else {
-            Scheduler.unstable_yieldValue(`Promise resolved [${text}]`);
-            resolve(text);
-          }
-        }, ms),
-      );
-    }, ([text, ms]) => text);
+    TextResource = ReactCache.unstable_createResource(
+      ([text, ms = 0]) => {
+        return new Promise((resolve, reject) =>
+          setTimeout(() => {
+            if (textResourceShouldFail) {
+              Scheduler.unstable_yieldValue(`Promise rejected [${text}]`);
+              reject(new Error('Failed to load: ' + text));
+            } else {
+              Scheduler.unstable_yieldValue(`Promise resolved [${text}]`);
+              resolve(text);
+            }
+          }, ms),
+        );
+      },
+      ([text, ms]) => text,
+    );
     textResourceShouldFail = false;
   });
 
@@ -91,25 +95,6 @@ describe('ReactSuspenseWithNoopRenderer', () => {
       throw promise;
     }
   }
-
-  it('warns if the deprecated maxDuration option is used', () => {
-    function Foo() {
-      return (
-        <Suspense maxDuration={100} fallback="Loading...">
-          <div />;
-        </Suspense>
-      );
-    }
-
-    ReactNoop.render(<Foo />);
-
-    expect(() => Scheduler.unstable_flushAll()).toErrorDev([
-      'Warning: maxDuration has been removed from React. ' +
-        'Remove the maxDuration prop.' +
-        '\n    in Suspense (at **)' +
-        '\n    in Foo (at **)',
-    ]);
-  });
 
   it('does not restart rendering for initial render', async () => {
     function Bar(props) {
@@ -844,7 +829,7 @@ describe('ReactSuspenseWithNoopRenderer', () => {
       </Suspense>,
     );
     Scheduler.unstable_advanceTime(10000);
-    expect(Scheduler).toHaveYielded([
+    expect(Scheduler).toFlushExpired([
       'Suspend! [A]',
       'Suspend! [B]',
       'Loading...',
@@ -983,7 +968,7 @@ describe('ReactSuspenseWithNoopRenderer', () => {
     Scheduler.unstable_advanceTime(10000);
     jest.advanceTimersByTime(10000);
 
-    expect(Scheduler).toHaveYielded([
+    expect(Scheduler).toFlushExpired([
       'Suspend! [goodbye]',
       'Loading...',
       'Commit: goodbye',
@@ -1431,6 +1416,55 @@ describe('ReactSuspenseWithNoopRenderer', () => {
         'Caught an error: Error in host config.',
       );
     });
+
+    it('does not drop mounted effects', async () => {
+      let never = {then() {}};
+
+      let setShouldSuspend;
+      function App() {
+        const [shouldSuspend, _setShouldSuspend] = React.useState(0);
+        setShouldSuspend = _setShouldSuspend;
+        return (
+          <Suspense fallback="Loading...">
+            <Child shouldSuspend={shouldSuspend} />
+          </Suspense>
+        );
+      }
+
+      function Child({shouldSuspend}) {
+        if (shouldSuspend) {
+          throw never;
+        }
+
+        React.useEffect(() => {
+          Scheduler.unstable_yieldValue('Mount');
+          return () => {
+            Scheduler.unstable_yieldValue('Unmount');
+          };
+        }, []);
+
+        return 'Child';
+      }
+
+      const root = ReactNoop.createLegacyRoot(null);
+      await ReactNoop.act(async () => {
+        root.render(<App />);
+      });
+      expect(Scheduler).toHaveYielded(['Mount']);
+      expect(root).toMatchRenderedOutput('Child');
+
+      // Suspend the child. This puts it into an inconsistent state.
+      await ReactNoop.act(async () => {
+        setShouldSuspend(true);
+      });
+      expect(root).toMatchRenderedOutput('Loading...');
+
+      // Unmount everying
+      await ReactNoop.act(async () => {
+        root.render(null);
+      });
+      expect(Scheduler).toHaveYielded(['Unmount']);
+    });
   });
 
   it('does not call lifecycles of a suspended component', async () => {
@@ -1514,50 +1548,38 @@ describe('ReactSuspenseWithNoopRenderer', () => {
 
   it('does not call lifecycles of a suspended component (hooks)', async () => {
     function TextWithLifecycle(props) {
-      React.useLayoutEffect(
-        () => {
-          Scheduler.unstable_yieldValue(`Layout Effect [${props.text}]`);
-          return () => {
-            Scheduler.unstable_yieldValue(
-              `Destroy Layout Effect [${props.text}]`,
-            );
-          };
-        },
-        [props.text],
-      );
-      React.useEffect(
-        () => {
-          Scheduler.unstable_yieldValue(`Effect [${props.text}]`);
-          return () => {
-            Scheduler.unstable_yieldValue(`Destroy Effect [${props.text}]`);
-          };
-        },
-        [props.text],
-      );
+      React.useLayoutEffect(() => {
+        Scheduler.unstable_yieldValue(`Layout Effect [${props.text}]`);
+        return () => {
+          Scheduler.unstable_yieldValue(
+            `Destroy Layout Effect [${props.text}]`,
+          );
+        };
+      }, [props.text]);
+      React.useEffect(() => {
+        Scheduler.unstable_yieldValue(`Effect [${props.text}]`);
+        return () => {
+          Scheduler.unstable_yieldValue(`Destroy Effect [${props.text}]`);
+        };
+      }, [props.text]);
       return <Text {...props} />;
     }
 
     function AsyncTextWithLifecycle(props) {
-      React.useLayoutEffect(
-        () => {
-          Scheduler.unstable_yieldValue(`Layout Effect [${props.text}]`);
-          return () => {
-            Scheduler.unstable_yieldValue(
-              `Destroy Layout Effect [${props.text}]`,
-            );
-          };
-        },
-        [props.text],
-      );
-      React.useEffect(
-        () => {
-          Scheduler.unstable_yieldValue(`Effect [${props.text}]`);
-          return () => {
-            Scheduler.unstable_yieldValue(`Destroy Effect [${props.text}]`);
-          };
-        },
-        [props.text],
-      );
+      React.useLayoutEffect(() => {
+        Scheduler.unstable_yieldValue(`Layout Effect [${props.text}]`);
+        return () => {
+          Scheduler.unstable_yieldValue(
+            `Destroy Layout Effect [${props.text}]`,
+          );
+        };
+      }, [props.text]);
+      React.useEffect(() => {
+        Scheduler.unstable_yieldValue(`Effect [${props.text}]`);
+        return () => {
+          Scheduler.unstable_yieldValue(`Destroy Effect [${props.text}]`);
+        };
+      }, [props.text]);
       const text = props.text;
       const ms = props.ms;
       try {
@@ -1623,13 +1645,26 @@ describe('ReactSuspenseWithNoopRenderer', () => {
 
     expect(Scheduler).toHaveYielded(['Promise resolved [B]']);
 
-    expect(Scheduler).toFlushAndYield([
-      'B',
-      'Destroy Layout Effect [Loading...]',
-      'Destroy Effect [Loading...]',
-      'Layout Effect [B]',
-      'Effect [B]',
-    ]);
+    if (
+      ReactFeatureFlags.deferPassiveEffectCleanupDuringUnmount &&
+      ReactFeatureFlags.runAllPassiveEffectDestroysBeforeCreates
+    ) {
+      expect(Scheduler).toFlushAndYield([
+        'B',
+        'Destroy Layout Effect [Loading...]',
+        'Layout Effect [B]',
+        'Destroy Effect [Loading...]',
+        'Effect [B]',
+      ]);
+    } else {
+      expect(Scheduler).toFlushAndYield([
+        'B',
+        'Destroy Layout Effect [Loading...]',
+        'Destroy Effect [Loading...]',
+        'Layout Effect [B]',
+        'Effect [B]',
+      ]);
+    }
 
     // Update
     ReactNoop.renderLegacySyncRoot(<App text="B2" />, () =>
@@ -1660,15 +1695,30 @@ describe('ReactSuspenseWithNoopRenderer', () => {
 
     expect(Scheduler).toHaveYielded(['Promise resolved [B2]']);
 
-    expect(Scheduler).toFlushAndYield([
-      'B2',
-      'Destroy Layout Effect [Loading...]',
-      'Destroy Effect [Loading...]',
-      'Destroy Layout Effect [B]',
-      'Layout Effect [B2]',
-      'Destroy Effect [B]',
-      'Effect [B2]',
-    ]);
+    if (
+      ReactFeatureFlags.deferPassiveEffectCleanupDuringUnmount &&
+      ReactFeatureFlags.runAllPassiveEffectDestroysBeforeCreates
+    ) {
+      expect(Scheduler).toFlushAndYield([
+        'B2',
+        'Destroy Layout Effect [Loading...]',
+        'Destroy Layout Effect [B]',
+        'Layout Effect [B2]',
+        'Destroy Effect [Loading...]',
+        'Destroy Effect [B]',
+        'Effect [B2]',
+      ]);
+    } else {
+      expect(Scheduler).toFlushAndYield([
+        'B2',
+        'Destroy Layout Effect [Loading...]',
+        'Destroy Effect [Loading...]',
+        'Destroy Layout Effect [B]',
+        'Layout Effect [B2]',
+        'Destroy Effect [B]',
+        'Effect [B2]',
+      ]);
+    }
   });
 
   it('suspends for longer if something took a long (CPU bound) time to render', async () => {
@@ -1875,7 +1925,8 @@ describe('ReactSuspenseWithNoopRenderer', () => {
     expect(ReactNoop.getChildren()).toEqual([span('Loading...')]);
   });
 
-  it('warns when a low priority update suspends inside a high priority update for functional components', async () => {
+  // TODO: flip to "warns" when this is implemented again.
+  it('does not warn when a low priority update suspends inside a high priority update for functional components', async () => {
     let _setShow;
     function App() {
       let [show, setShow] = React.useState(false);
@@ -1891,20 +1942,17 @@ describe('ReactSuspenseWithNoopRenderer', () => {
       ReactNoop.render(<App />);
     });
 
-    expect(() => {
-      ReactNoop.act(() => {
-        Scheduler.unstable_runWithPriority(
-          Scheduler.unstable_UserBlockingPriority,
-          () => _setShow(true),
-        );
-      });
-    }).toErrorDev(
-      'Warning: App triggered a user-blocking update that suspended.' + '\n\n',
-      {withoutStack: true},
-    );
+    // TODO: assert toErrorDev() when the warning is implemented again.
+    ReactNoop.act(() => {
+      Scheduler.unstable_runWithPriority(
+        Scheduler.unstable_UserBlockingPriority,
+        () => _setShow(true),
+      );
+    });
   });
 
-  it('warns when a low priority update suspends inside a high priority update for class components', async () => {
+  // TODO: flip to "warns" when this is implemented again.
+  it('does not warn when a low priority update suspends inside a high priority update for class components', async () => {
     let show;
     class App extends React.Component {
       state = {show: false};
@@ -1923,17 +1971,13 @@ describe('ReactSuspenseWithNoopRenderer', () => {
       ReactNoop.render(<App />);
     });
 
-    expect(() => {
-      ReactNoop.act(() => {
-        Scheduler.unstable_runWithPriority(
-          Scheduler.unstable_UserBlockingPriority,
-          () => show(),
-        );
-      });
-    }).toErrorDev(
-      'Warning: App triggered a user-blocking update that suspended.' + '\n\n',
-      {withoutStack: true},
-    );
+    // TODO: assert toErrorDev() when the warning is implemented again.
+    ReactNoop.act(() => {
+      Scheduler.unstable_runWithPriority(
+        Scheduler.unstable_UserBlockingPriority,
+        () => show(),
+      );
+    });
   });
 
   it('does not warn about wrong Suspense priority if no new fallbacks are shown', async () => {
@@ -1969,8 +2013,9 @@ describe('ReactSuspenseWithNoopRenderer', () => {
     expect(Scheduler).toHaveYielded(['Suspend! [A]', 'Suspend! [B]']);
   });
 
+  // TODO: flip to "warns" when this is implemented again.
   it(
-    'warns when component that triggered user-blocking update is between Suspense boundary ' +
+    'does not warn when component that triggered user-blocking update is between Suspense boundary ' +
       'and component that suspended',
     async () => {
       let _setShow;
@@ -1990,17 +2035,13 @@ describe('ReactSuspenseWithNoopRenderer', () => {
         ReactNoop.render(<App />);
       });
 
-      expect(() => {
-        ReactNoop.act(() => {
-          Scheduler.unstable_runWithPriority(
-            Scheduler.unstable_UserBlockingPriority,
-            () => _setShow(true),
-          );
-        });
-      }).toErrorDev(
-        'Warning: A triggered a user-blocking update that suspended.' + '\n\n',
-        {withoutStack: true},
-      );
+      // TODO: assert toErrorDev() when the warning is implemented again.
+      ReactNoop.act(() => {
+        Scheduler.unstable_runWithPriority(
+          Scheduler.unstable_UserBlockingPriority,
+          () => _setShow(true),
+        );
+      });
     },
   );
 
@@ -2896,7 +2937,8 @@ describe('ReactSuspenseWithNoopRenderer', () => {
     expect(ReactNoop).toMatchRenderedOutput(
       <>
         <div hidden={true}>
-          <span prop="A" />Offscreen
+          <span prop="A" />
+          Offscreen
         </div>
         <span prop="A" />
       </>,

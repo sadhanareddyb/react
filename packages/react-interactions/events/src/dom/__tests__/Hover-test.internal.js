@@ -34,6 +34,11 @@ const table = [[forcePointerEvents], [!forcePointerEvents]];
 describe.each(table)('Hover responder', hasPointerEvents => {
   let container;
 
+  if (!__EXPERIMENTAL__) {
+    it("empty test so Jest doesn't complain", () => {});
+    return;
+  }
+
   beforeEach(() => {
     initializeModules(hasPointerEvents);
     container = document.createElement('div');
@@ -192,6 +197,32 @@ describe.each(table)('Hover responder', hasPointerEvents => {
       target.pointerdown({pointerType: 'touch'});
       target.pointerup({pointerType: 'touch'});
       expect(onHoverEnd).not.toBeCalled();
+    });
+
+    it('should correctly work with React Portals', () => {
+      const portalNode = document.createElement('div');
+      const divRef = React.createRef();
+      const spanRef = React.createRef();
+
+      function Test() {
+        const listener = useHover({
+          onHoverEnd,
+        });
+        return (
+          <div ref={divRef} DEPRECATED_flareListeners={listener}>
+            {ReactDOM.createPortal(<span ref={spanRef} />, portalNode)}
+          </div>
+        );
+      }
+      ReactDOM.render(<Test />, container);
+      const div = createEventTarget(divRef.current);
+      div.pointerenter();
+      const span = createEventTarget(spanRef.current);
+      span.pointerexit();
+      expect(onHoverEnd).not.toBeCalled();
+      const body = createEventTarget(document.body);
+      body.pointerexit();
+      expect(onHoverEnd).toBeCalled();
     });
   });
 

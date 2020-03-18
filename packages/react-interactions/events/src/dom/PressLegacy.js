@@ -17,7 +17,7 @@ import type {
   ReactEventResponderListener,
 } from 'shared/ReactTypes';
 
-import React from 'react';
+import * as React from 'react';
 import {DiscreteEvent, UserBlockingEvent} from 'shared/ReactTypes';
 
 type PressProps = {|
@@ -27,6 +27,7 @@ type PressProps = {|
     right: number,
     bottom: number,
     left: number,
+    ...
   },
   preventDefault: boolean,
   onPress: (e: PressEvent) => void,
@@ -65,6 +66,7 @@ type PressState = {
   activePointerId: null | number,
   shouldPreventClick: boolean,
   touchEvent: null | Touch,
+  ...
 };
 
 type PressEventType =
@@ -124,6 +126,7 @@ const rootEventTypes = hasPointerEvents
       'click',
       'keyup',
       'scroll',
+      'blur',
     ]
   : [
       'click',
@@ -136,6 +139,7 @@ const rootEventTypes = hasPointerEvents
       'dragstart',
       'mouseup_active',
       'touchend',
+      'blur',
     ];
 
 function isFunction(obj): boolean {
@@ -339,9 +343,9 @@ function isValidKeyboardEvent(nativeEvent: Object): boolean {
   // "Spacebar" is for IE 11
   return (
     (key === 'Enter' || key === ' ' || key === 'Spacebar') &&
-    (tagName !== 'INPUT' &&
-      tagName !== 'TEXTAREA' &&
-      isContentEditable !== true)
+    tagName !== 'INPUT' &&
+    tagName !== 'TEXTAREA' &&
+    isContentEditable !== true
   );
 }
 
@@ -480,7 +484,10 @@ function updateIsPressWithinResponderRegion(
     bottom != null &&
     x !== null &&
     y !== null &&
-    (x >= left && x <= right && y >= top && y <= bottom);
+    x >= left &&
+    x <= right &&
+    y >= top &&
+    y <= bottom;
 }
 
 // After some investigation work, screen reader virtual
@@ -772,6 +779,7 @@ const pressResponderImpl = {
 
           // Determine whether to call preventDefault on subsequent native events.
           if (
+            target !== null &&
             context.isTargetWithinResponder(target) &&
             context.isTargetWithinHostComponent(target, 'a')
           ) {
@@ -803,6 +811,7 @@ const pressResponderImpl = {
             if (
               !isKeyboardEvent &&
               pressTarget !== null &&
+              target !== null &&
               !targetIsDocument(pressTarget)
             ) {
               if (
@@ -874,6 +883,14 @@ const pressResponderImpl = {
       case 'touchcancel':
       case 'dragstart': {
         dispatchCancel(event, context, props, state);
+        break;
+      }
+      case 'blur': {
+        // If we encounter a blur that happens on the pressed target
+        // then disengage the blur.
+        if (isPressed && target === state.pressTarget) {
+          dispatchCancel(event, context, props, state);
+        }
       }
     }
   },
@@ -886,6 +903,7 @@ const pressResponderImpl = {
   },
 };
 
+// $FlowFixMe Can't add generic types without causing a parsing/syntax errors
 export const PressResponder = React.DEPRECATED_createResponder(
   'Press',
   pressResponderImpl,
@@ -893,6 +911,6 @@ export const PressResponder = React.DEPRECATED_createResponder(
 
 export function usePress(
   props: PressProps,
-): ReactEventResponderListener<any, any> {
+): ?ReactEventResponderListener<any, any> {
   return React.DEPRECATED_useResponder(PressResponder, props);
 }

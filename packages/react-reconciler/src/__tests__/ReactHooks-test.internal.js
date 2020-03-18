@@ -625,10 +625,13 @@ describe('ReactHooks', () => {
   it('warns if switching from dependencies to no dependencies', () => {
     const {useMemo} = React;
     function App({text, hasDeps}) {
-      const resolvedText = useMemo(() => {
-        Scheduler.unstable_yieldValue('Compute');
-        return text.toUpperCase();
-      }, hasDeps ? null : [text]);
+      const resolvedText = useMemo(
+        () => {
+          Scheduler.unstable_yieldValue('Compute');
+          return text.toUpperCase();
+        },
+        hasDeps ? null : [text],
+      );
       return resolvedText;
     }
 
@@ -1082,7 +1085,10 @@ describe('ReactHooks', () => {
           <Cls />
         </>,
       ),
-    ).toErrorDev(['Context can only be read while React is rendering']);
+    ).toErrorDev([
+      'Context can only be read while React is rendering',
+      'Cannot update a component (`Fn`) while rendering a different component (`Cls`).',
+    ]);
   });
 
   it('warns when calling hooks inside useReducer', () => {
@@ -1183,7 +1189,10 @@ describe('ReactHooks', () => {
       React.useLayoutEffect(() => {});
       React.useCallback(() => {});
       React.useRef();
-      React.useImperativeHandle(() => {}, () => {});
+      React.useImperativeHandle(
+        () => {},
+        () => {},
+      );
       if (__DEV__) {
         React.useDebugValue();
       }
@@ -1743,8 +1752,9 @@ describe('ReactHooks', () => {
   });
 
   // Regression test for #14674
-  it('does not swallow original error when updating another component in render phase', () => {
+  it('does not swallow original error when updating another component in render phase', async () => {
     let {useState} = React;
+    spyOnDev(console, 'error');
 
     let _setState;
     function A() {
@@ -1754,22 +1764,29 @@ describe('ReactHooks', () => {
     }
 
     function B() {
-      act(() =>
-        _setState(() => {
-          throw new Error('Hello');
-        }),
-      );
+      _setState(() => {
+        throw new Error('Hello');
+      });
       return null;
     }
 
-    expect(() =>
+    await act(async () => {
       ReactTestRenderer.create(
         <>
           <A />
           <B />
         </>,
-      ),
-    ).toThrow('Hello');
+      );
+      expect(() => Scheduler.unstable_flushAll()).toThrow('Hello');
+    });
+
+    if (__DEV__) {
+      expect(console.error).toHaveBeenCalledTimes(2);
+      expect(console.error.calls.argsFor(0)[0]).toContain(
+        'Warning: Cannot update a component (`%s`) while rendering ' +
+          'a different component (`%s`).',
+      );
+    }
   });
 
   // Regression test for https://github.com/facebook/react/issues/15057

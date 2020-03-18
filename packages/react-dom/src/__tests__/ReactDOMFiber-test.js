@@ -247,30 +247,32 @@ describe('ReactDOMFiber', () => {
   });
 
   // TODO: remove in React 17
-  it('should support unstable_createPortal alias', () => {
-    const portalContainer = document.createElement('div');
+  if (!__EXPERIMENTAL__) {
+    it('should support unstable_createPortal alias', () => {
+      const portalContainer = document.createElement('div');
 
-    expect(() =>
-      ReactDOM.render(
-        <div>
-          {ReactDOM.unstable_createPortal(<div>portal</div>, portalContainer)}
-        </div>,
-        container,
-      ),
-    ).toWarnDev(
-      'The ReactDOM.unstable_createPortal() alias has been deprecated, ' +
-        'and will be removed in React 17+. Update your code to use ' +
-        'ReactDOM.createPortal() instead. It has the exact same API, ' +
-        'but without the "unstable_" prefix.',
-      {withoutStack: true},
-    );
-    expect(portalContainer.innerHTML).toBe('<div>portal</div>');
-    expect(container.innerHTML).toBe('<div></div>');
+      expect(() =>
+        ReactDOM.render(
+          <div>
+            {ReactDOM.unstable_createPortal(<div>portal</div>, portalContainer)}
+          </div>,
+          container,
+        ),
+      ).toWarnDev(
+        'The ReactDOM.unstable_createPortal() alias has been deprecated, ' +
+          'and will be removed in React 17+. Update your code to use ' +
+          'ReactDOM.createPortal() instead. It has the exact same API, ' +
+          'but without the "unstable_" prefix.',
+        {withoutStack: true},
+      );
+      expect(portalContainer.innerHTML).toBe('<div>portal</div>');
+      expect(container.innerHTML).toBe('<div></div>');
 
-    ReactDOM.unmountComponentAtNode(container);
-    expect(portalContainer.innerHTML).toBe('');
-    expect(container.innerHTML).toBe('');
-  });
+      ReactDOM.unmountComponentAtNode(container);
+      expect(portalContainer.innerHTML).toBe('');
+      expect(container.innerHTML).toBe('');
+    });
+  }
 
   it('should render many portals', () => {
     const portalContainer1 = document.createElement('div');
@@ -1151,7 +1153,9 @@ describe('ReactDOMFiber', () => {
     expect(container.innerHTML).toBe('<div>bar</div>');
     // then we mess with the DOM before an update
     container.innerHTML = '<div>MEOW.</div>';
-    expect(() => ReactDOM.render(<div>baz</div>, container)).toErrorDev(
+    expect(() =>
+      ReactDOM.render(<div>baz</div>, container),
+    ).toErrorDev(
       'render(...): ' +
         'It looks like the React-rendered content of this container was ' +
         'removed without using React. This is not supported and will ' +
@@ -1168,7 +1172,9 @@ describe('ReactDOMFiber', () => {
     expect(container.innerHTML).toBe('<div>bar</div>');
     // then we mess with the DOM before an update
     container.innerHTML = '';
-    expect(() => ReactDOM.render(<div>baz</div>, container)).toErrorDev(
+    expect(() =>
+      ReactDOM.render(<div>baz</div>, container),
+    ).toErrorDev(
       'render(...): ' +
         'It looks like the React-rendered content of this container was ' +
         'removed without using React. This is not supported and will ' +

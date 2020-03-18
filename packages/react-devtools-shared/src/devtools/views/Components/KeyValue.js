@@ -7,7 +7,8 @@
  * @flow
  */
 
-import React, {useEffect, useRef, useState} from 'react';
+import * as React from 'react';
+import {useEffect, useRef, useState} from 'react';
 import EditableValue from './EditableValue';
 import ExpandCollapseToggle from './ExpandCollapseToggle';
 import {alphaSortEntries, getMetaValueLabel} from '../utils';
@@ -55,20 +56,17 @@ export default function KeyValue({
     value[meta.inspectable] &&
     value[meta.size] !== 0;
 
-  useEffect(
-    () => {
-      if (
-        isInspectable &&
-        isOpen &&
-        !prevIsOpenRef.current &&
-        typeof inspectPath === 'function'
-      ) {
-        inspectPath(path);
-      }
-      prevIsOpenRef.current = isOpen;
-    },
-    [inspectPath, isInspectable, isOpen, path],
-  );
+  useEffect(() => {
+    if (
+      isInspectable &&
+      isOpen &&
+      !prevIsOpenRef.current &&
+      typeof inspectPath === 'function'
+    ) {
+      inspectPath(path);
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [inspectPath, isInspectable, isOpen, path]);
 
   const toggleIsOpen = () => setIsOpen(prevIsOpen => !prevIsOpen);
 

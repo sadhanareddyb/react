@@ -13,10 +13,15 @@ import type {
 } from 'react-reconciler/src/ReactFiberHooks';
 import type {ThreadID} from './ReactThreadIDAllocator';
 import type {
+  MutableSource,
+  MutableSourceGetSnapshotFn,
+  MutableSourceSubscribeFn,
   ReactContext,
   ReactEventResponderListener,
 } from 'shared/ReactTypes';
 import type {SuspenseConfig} from 'react-reconciler/src/ReactFiberSuspenseConfig';
+import type {ReactDOMListenerMap} from 'shared/ReactDOMTypes';
+
 import {validateContextBounds} from './ReactPartialRendererContext';
 
 import invariant from 'shared/invariant';
@@ -25,21 +30,21 @@ import is from 'shared/objectIs';
 type BasicStateAction<S> = (S => S) | S;
 type Dispatch<A> = A => void;
 
-type Update<A> = {
+type Update<A> = {|
   action: A,
   next: Update<A> | null,
-};
+|};
 
-type UpdateQueue<A> = {
+type UpdateQueue<A> = {|
   last: Update<A> | null,
   dispatch: any,
-};
+|};
 
-type Hook = {
+type Hook = {|
   memoizedState: any,
   queue: UpdateQueue<any> | null,
   next: Hook | null,
-};
+|};
 
 let currentlyRenderingComponent: Object | null = null;
 let firstWorkInProgressHook: Hook | null = null;
@@ -247,6 +252,7 @@ function useContext<T>(
 }
 
 function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
+  // $FlowFixMe: Flow doesn't like mixed types
   return typeof action === 'function' ? action(state) : action;
 }
 
@@ -369,7 +375,7 @@ function useMemo<T>(nextCreate: () => T, deps: Array<mixed> | void | null): T {
   return nextValue;
 }
 
-function useRef<T>(initialValue: T): {current: T} {
+function useRef<T>(initialValue: T): {|current: T|} {
   currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
   workInProgressHook = createWorkInProgressHook();
   const previousRef = workInProgressHook.memoizedState;
@@ -458,6 +464,18 @@ function useResponder(responder, props): ReactEventResponderListener<any, any> {
   };
 }
 
+// TODO Decide on how to implement this hook for server rendering.
+// If a mutation occurs during render, consider triggering a Suspense boundary
+// and falling back to client rendering.
+function useMutableSource<Source, Snapshot>(
+  source: MutableSource<Source>,
+  getSnapshot: MutableSourceGetSnapshotFn<Source, Snapshot>,
+  subscribe: MutableSourceSubscribeFn<Source, Snapshot>,
+): Snapshot {
+  resolveCurrentlyRenderingComponent();
+  return getSnapshot(source._source);
+}
+
 function useDeferredValue<T>(value: T, config: TimeoutConfig | null | void): T {
   resolveCurrentlyRenderingComponent();
   return value;
@@ -471,6 +489,13 @@ function useTransition(
     callback();
   };
   return [startTransition, false];
+}
+
+function useEvent(event: any): ReactDOMListenerMap {
+  return {
+    clear: noop,
+    setListener: noop,
+  };
 }
 
 function noop(): void {}
@@ -499,4 +524,7 @@ export const Dispatcher: DispatcherType = {
   useResponder,
   useDeferredValue,
   useTransition,
+  useEvent,
+  // Subscriptions are not setup in a server environment.
+  useMutableSource,
 };

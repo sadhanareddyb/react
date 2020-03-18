@@ -10,8 +10,12 @@
 .*/node_modules/chrome-devtools-frontend/.*
 .*/node_modules/devtools-timeline-model/.*
 .*/node_modules/create-react-class/.*
+.*/node_modules/react-native-web/.*
 .*/__mocks__/.*
 .*/__tests__/.*
+
+# TODO: noop should get its own inlinedHostConfig entry
+.*/packages/react-noop-renderer/.*
 
 %REACT_RENDERER_FLOW_IGNORES%
 
@@ -25,11 +29,13 @@
 ../environment.js
 ../react-devtools.js
 ../react-native-host-hooks.js
+../react-relay-hooks.js
 
 [lints]
 untyped-type-import=error
 
 [options]
+server.max_workers=4
 esproposal.class_static_fields=enable
 esproposal.class_instance_fields=enable
 
@@ -49,4 +55,4 @@ suppress_comment=\\(.\\|\n\\)*\\$FlowFixedInNextDeploy
 suppress_comment=\\(.\\|\n\\)*\\$FlowExpectedError
 
 [version]
-^0.72.0
+^0.97.0

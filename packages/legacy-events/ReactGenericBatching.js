@@ -23,8 +23,8 @@ import {invokeGuardedCallbackAndCatchFirstError} from 'shared/ReactErrorUtils';
 let batchedUpdatesImpl = function(fn, bookkeeping) {
   return fn(bookkeeping);
 };
-let discreteUpdatesImpl = function(fn, a, b, c) {
-  return fn(a, b, c);
+let discreteUpdatesImpl = function(fn, a, b, c, d) {
+  return fn(a, b, c, d);
 };
 let flushDiscreteUpdatesImpl = function() {};
 let batchedEventUpdatesImpl = batchedUpdatesImpl;
@@ -89,11 +89,11 @@ export function executeUserEventHandler(fn: any => void, value: any): void {
   }
 }
 
-export function discreteUpdates(fn, a, b, c) {
+export function discreteUpdates(fn, a, b, c, d) {
   const prevIsInsideEventHandler = isInsideEventHandler;
   isInsideEventHandler = true;
   try {
-    return discreteUpdatesImpl(fn, a, b, c);
+    return discreteUpdatesImpl(fn, a, b, c, d);
   } finally {
     isInsideEventHandler = prevIsInsideEventHandler;
     if (!isInsideEventHandler) {
@@ -119,7 +119,8 @@ export function flushDiscreteUpdatesIfNeeded(timeStamp: number) {
   if (
     !isInsideEventHandler &&
     (!enableDeprecatedFlareAPI ||
-      (timeStamp === 0 || lastFlushedEventTimeStamp !== timeStamp))
+      timeStamp === 0 ||
+      lastFlushedEventTimeStamp !== timeStamp)
   ) {
     lastFlushedEventTimeStamp = timeStamp;
     flushDiscreteUpdatesImpl();

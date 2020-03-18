@@ -30,9 +30,9 @@ export const sharedProfilingBuffer = enableProfiling
     typeof SharedArrayBuffer === 'function'
     ? new SharedArrayBuffer(profilingStateSize * Int32Array.BYTES_PER_ELEMENT)
     : // $FlowFixMe Flow doesn't know about ArrayBuffer
-      typeof ArrayBuffer === 'function'
-      ? new ArrayBuffer(profilingStateSize * Int32Array.BYTES_PER_ELEMENT)
-      : null // Don't crash the init path on IE9
+    typeof ArrayBuffer === 'function'
+    ? new ArrayBuffer(profilingStateSize * Int32Array.BYTES_PER_ELEMENT)
+    : null // Don't crash the init path on IE9
   : null;
 
 const profilingState =
@@ -112,7 +112,11 @@ export function stopLoggingProfilingEvents(): ArrayBuffer | null {
 }
 
 export function markTaskStart(
-  task: {id: number, priorityLevel: PriorityLevel},
+  task: {
+    id: number,
+    priorityLevel: PriorityLevel,
+    ...
+  },
   ms: number,
 ) {
   if (enableProfiling) {
@@ -131,6 +135,7 @@ export function markTaskCompleted(
   task: {
     id: number,
     priorityLevel: PriorityLevel,
+    ...
   },
   ms: number,
 ) {
@@ -149,6 +154,7 @@ export function markTaskCanceled(
   task: {
     id: number,
     priorityLevel: PriorityLevel,
+    ...
   },
   ms: number,
 ) {
@@ -165,6 +171,7 @@ export function markTaskErrored(
   task: {
     id: number,
     priorityLevel: PriorityLevel,
+    ...
   },
   ms: number,
 ) {
@@ -180,7 +187,11 @@ export function markTaskErrored(
 }
 
 export function markTaskRun(
-  task: {id: number, priorityLevel: PriorityLevel},
+  task: {
+    id: number,
+    priorityLevel: PriorityLevel,
+    ...
+  },
   ms: number,
 ) {
   if (enableProfiling) {
@@ -196,7 +207,7 @@ export function markTaskRun(
   }
 }
 
-export function markTaskYield(task: {id: number}, ms: number) {
+export function markTaskYield(task: {id: number, ...}, ms: number) {
   if (enableProfiling) {
     profilingState[PRIORITY] = NoPriority;
     profilingState[CURRENT_TASK_ID] = 0;

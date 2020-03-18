@@ -7,7 +7,9 @@
  * @flow
  */
 
+import type {ElementRef} from 'react';
 import type {
+  HostComponent,
   MeasureInWindowOnSuccessCallback,
   MeasureLayoutOnSuccessCallback,
   MeasureOnSuccessCallback,
@@ -59,10 +61,9 @@ export type Props = Object;
 export type Instance = {
   node: Node,
   canonical: ReactFabricHostComponent,
+  ...
 };
-export type TextInstance = {
-  node: Node,
-};
+export type TextInstance = {node: Node, ...};
 export type HydratableInstance = Instance | TextInstance;
 export type PublicInstance = ReactFabricHostComponent;
 export type Container = number;
@@ -74,6 +75,10 @@ export type UpdatePayload = Object;
 
 export type TimeoutHandle = TimeoutID;
 export type NoTimeout = -1;
+
+export type ReactListenerEvent = Object;
+export type ReactListenerMap = Object;
+export type ReactListener = Object;
 
 // TODO: Remove this conditional once all changes have propagated.
 if (registerEventHandler) {
@@ -105,11 +110,11 @@ class ReactFabricHostComponent {
   }
 
   blur() {
-    TextInputState.blurTextInput(this._nativeTag);
+    TextInputState.blurTextInput(this);
   }
 
   focus() {
-    TextInputState.focusTextInput(this._nativeTag);
+    TextInputState.focusTextInput(this);
   }
 
   measure(callback: MeasureOnSuccessCallback) {
@@ -127,7 +132,7 @@ class ReactFabricHostComponent {
   }
 
   measureLayout(
-    relativeToNativeNode: number | ReactFabricHostComponent,
+    relativeToNativeNode: number | ElementRef<HostComponent<mixed>>,
     onSuccess: MeasureLayoutOnSuccessCallback,
     onFail?: () => void /* currently unused */,
   ) {
@@ -437,34 +442,50 @@ export function DEPRECATED_unmountResponderInstance(
   throw new Error('Not yet implemented.');
 }
 
-export function getFundamentalComponentInstance(fundamentalInstance) {
+export function getFundamentalComponentInstance(fundamentalInstance: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function mountFundamentalComponent(fundamentalInstance) {
+export function mountFundamentalComponent(fundamentalInstance: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function shouldUpdateFundamentalComponent(fundamentalInstance) {
+export function shouldUpdateFundamentalComponent(fundamentalInstance: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function updateFundamentalComponent(fundamentalInstance) {
+export function updateFundamentalComponent(fundamentalInstance: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function unmountFundamentalComponent(fundamentalInstance) {
+export function unmountFundamentalComponent(fundamentalInstance: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function cloneFundamentalInstance(fundamentalInstance) {
+export function cloneFundamentalInstance(fundamentalInstance: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function getInstanceFromNode(node) {
+export function getInstanceFromNode(node: any) {
   throw new Error('Not yet implemented.');
 }
 
-export function beforeRemoveInstance(instance) {
+export function beforeRemoveInstance(instance: any) {
   // noop
+}
+
+export function registerEvent(event: any, rootContainerInstance: Container) {
+  throw new Error('Not yet implemented.');
+}
+
+export function mountEventListener(listener: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function unmountEventListener(listener: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function validateEventListenerTarget(target: any, listener: any) {
+  throw new Error('Not yet implemented.');
 }

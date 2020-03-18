@@ -59,7 +59,7 @@ describe('ReactNewContext', () => {
         }).toErrorDev(
           observedBits !== undefined
             ? 'useContext() second argument is reserved for future use in React. ' +
-              `Passing it is not supported. You passed: ${observedBits}.`
+                `Passing it is not supported. You passed: ${observedBits}.`
             : [],
         );
         const render = props.children;
@@ -75,7 +75,7 @@ describe('ReactNewContext', () => {
       }).toErrorDev(
         observedBits !== undefined
           ? 'useContext() second argument is reserved for future use in React. ' +
-            `Passing it is not supported. You passed: ${observedBits}.`
+              `Passing it is not supported. You passed: ${observedBits}.`
           : [],
       );
       const render = props.children;
@@ -91,7 +91,7 @@ describe('ReactNewContext', () => {
       }).toErrorDev(
         observedBits !== undefined
           ? 'useContext() second argument is reserved for future use in React. ' +
-            `Passing it is not supported. You passed: ${observedBits}.`
+              `Passing it is not supported. You passed: ${observedBits}.`
           : [],
       );
       const render = props.children;
@@ -811,9 +811,7 @@ describe('ReactNewContext', () => {
             Scheduler.unstable_yieldValue('Child');
             return (
               <span
-                prop={`Context: ${this.props.context}, Step: ${
-                  this.state.step
-                }`}
+                prop={`Context: ${this.props.context}, Step: ${this.state.step}`}
               />
             );
           }
@@ -1200,7 +1198,6 @@ describe('ReactNewContext', () => {
           'The old API will be supported in all 16.x releases, but applications ' +
           'using it should migrate to the new version.\n\n' +
           'Please update the following components: LegacyProvider',
-        {withoutStack: true},
       );
       expect(ReactNoop.getChildren()).toEqual([span('Child')]);
 

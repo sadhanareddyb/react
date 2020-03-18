@@ -7,10 +7,14 @@
  * @flow
  */
 
+import type {DOMTopLevelEventType} from 'legacy-events/TopLevelEventTypes';
+import type {RootType} from './ReactDOMRoot';
+
 import {
   precacheFiberNode,
   updateFiberProps,
   getClosestInstanceFromNode,
+  getListenersFromTarget,
 } from './ReactDOMComponentTree';
 import {
   createElement,
@@ -34,7 +38,7 @@ import {validateDOMNesting, updatedAncestorInfo} from './validateDOMNesting';
 import {
   isEnabled as ReactBrowserEventEmitterIsEnabled,
   setEnabled as ReactBrowserEventEmitterSetEnabled,
-} from '../events/ReactBrowserEventEmitter';
+} from '../events/ReactDOMEventListener';
 import {getChildNamespace} from '../shared/DOMNamespaces';
 import {
   ELEMENT_NODE,
@@ -45,11 +49,13 @@ import {
 } from '../shared/HTMLNodeType';
 import dangerousStyleValue from '../shared/dangerousStyleValue';
 
-import type {DOMContainer} from './ReactDOM';
 import type {
   ReactDOMEventResponder,
   ReactDOMEventResponderInstance,
   ReactDOMFundamentalComponentInstance,
+  ReactDOMListener,
+  ReactDOMListenerEvent,
+  ReactDOMListenerMap,
 } from 'shared/ReactDOMTypes';
 import {
   mountEventResponder,
@@ -58,6 +64,30 @@ import {
 } from '../events/DeprecatedDOMEventResponderSystem';
 import {retryIfBlockedOn} from '../events/ReactDOMEventReplaying';
 
+import {
+  enableSuspenseServerRenderer,
+  enableDeprecatedFlareAPI,
+  enableFundamentalAPI,
+  enableUseEventAPI,
+} from 'shared/ReactFeatureFlags';
+import {HostComponent} from 'shared/ReactWorkTags';
+import {
+  RESPONDER_EVENT_SYSTEM,
+  IS_PASSIVE,
+} from 'legacy-events/EventSystemFlags';
+import {
+  attachElementListener,
+  detachElementListener,
+  isDOMDocument,
+  isDOMElement,
+  listenToTopLevelEvent,
+} from '../events/DOMModernPluginEventSystem';
+import {getListenerMapForElement} from '../events/DOMEventListenerMap';
+
+export type ReactListenerEvent = ReactDOMListenerEvent;
+export type ReactListenerMap = ReactDOMListenerMap;
+export type ReactListener = ReactDOMListener;
+
 export type Type = string;
 export type Props = {
   autoFocus?: boolean,
@@ -65,13 +95,12 @@ export type Props = {
   hidden?: boolean,
   suppressHydrationWarning?: boolean,
   dangerouslySetInnerHTML?: mixed,
-  style?: {
-    display?: string,
-  },
+  style?: {display?: string, ...},
   bottom?: null | number,
   left?: null | number,
   right?: null | number,
   top?: null | number,
+  ...
 };
 export type EventTargetChildElement = {
   type: string,
@@ -83,18 +112,24 @@ export type EventTargetChildElement = {
       left?: string,
       right?: string,
       top?: string,
+      ...
     },
+    ...
   },
+  ...
 };
-export type Container = Element | Document;
+export type Container =
+  | (Element & {_reactRootContainer?: RootType, ...})
+  | (Document & {_reactRootContainer?: RootType, ...});
 export type Instance = Element;
 export type TextInstance = Text;
-export type SuspenseInstance = Comment & {_reactRetry?: () => void};
+export type SuspenseInstance = Comment & {_reactRetry?: () => void, ...};
 export type HydratableInstance = Instance | TextInstance | SuspenseInstance;
 export type PublicInstance = Element | Text;
 type HostContextDev = {
   namespace: string,
   ancestorInfo: mixed,
+  ...
 };
 type HostContextProd = string;
 export type HostContext = HostContextDev | HostContextProd;
@@ -108,16 +143,6 @@ type SelectionInformation = {|
   focusedElem: null | HTMLElement,
   selectionRange: mixed,
 |};
-
-import {
-  enableSuspenseServerRenderer,
-  enableDeprecatedFlareAPI,
-  enableFundamentalAPI,
-} from 'shared/ReactFeatureFlags';
-import {
-  RESPONDER_EVENT_SYSTEM,
-  IS_PASSIVE,
-} from 'legacy-events/EventSystemFlags';
 
 let SUPPRESS_HYDRATION_WARNING;
 if (__DEV__) {
@@ -347,9 +372,9 @@ export const warnsIfNotActing = true;
 // This initialization code may run even on server environments
 // if a component just imports ReactDOM (e.g. for findDOMNode).
 // Some environments might not have setTimeout or clearTimeout.
-export const scheduleTimeout =
+export const scheduleTimeout: any =
   typeof setTimeout === 'function' ? setTimeout : (undefined: any);
-export const cancelTimeout =
+export const cancelTimeout: any =
   typeof clearTimeout === 'function' ? clearTimeout : (undefined: any);
 export const noTimeout = -1;
 
@@ -415,7 +440,7 @@ export function appendChild(
 }
 
 export function appendChildToContainer(
-  container: DOMContainer,
+  container: Container,
   child: Instance | TextInstance,
 ): void {
   let parentNode;
@@ -508,6 +533,22 @@ export function beforeRemoveInstance(
   ) {
     dispatchBeforeDetachedBlur(((instance: any): HTMLElement));
   }
+  if (enableUseEventAPI) {
+    // It's unfortunate that we have to do this cleanup, but
+    // it's necessary otherwise we will leak the host instances
+    // from the useEvent hook instances Map. We call destroy
+    // on each listener to ensure we properly remove the instance
+    // from the instances Map. Note: we have this Map so that we
+    // can properly unmount instances when the function component
+    // that the hook is attached to gets unmounted.
+    const listenersSet = getListenersFromTarget(instance);
+    if (listenersSet !== null) {
+      const listeners = Array.from(listenersSet);
+      for (let i = 0; i < listeners.length; i++) {
+        listeners[i].destroy(instance);
+      }
+    }
+  }
 }
 
 export function removeChild(
@@ -581,7 +622,28 @@ export function clearSuspenseBoundaryFromContainer(
   retryIfBlockedOn(container);
 }
 
+function instanceContainsElem(instance: Instance, element: HTMLElement) {
+  let fiber = getClosestInstanceFromNode(element);
+  while (fiber !== null) {
+    if (fiber.tag === HostComponent && fiber.stateNode === instance) {
+      return true;
+    }
+    fiber = fiber.return;
+  }
+  return false;
+}
+
 export function hideInstance(instance: Instance): void {
+  // Ensure we trigger `onBeforeBlur` if the active focused elment
+  // is ether the instance of a child or the instance. We need
+  // to traverse the Fiber tree here rather than use node.contains()
+  // as the child node might be inside a Portal.
+  if (enableDeprecatedFlareAPI && selectionInformation) {
+    const focusedElem = selectionInformation.focusedElem;
+    if (focusedElem !== null && instanceContainsElem(instance, focusedElem)) {
+      dispatchBeforeDetachedBlur(((focusedElem: any): HTMLElement));
+    }
+  }
   // TODO: Does this work for all element types? What about MathML? Should we
   // pass host context to this method?
   instance = ((instance: any): HTMLElement);
@@ -789,7 +851,7 @@ export function getNextHydratableInstanceAfterSuspenseInstance(
 // SuspenseInstance. I.e. if its previous sibling is a Comment with
 // SUSPENSE_x_START_DATA. Otherwise, null.
 export function getParentSuspenseInstance(
-  targetInstance: Instance,
+  targetInstance: Node,
 ): null | SuspenseInstance {
   let node = targetInstance.previousSibling;
   // Skip past all nodes within this suspense boundary.
@@ -1039,4 +1101,82 @@ export function unmountFundamentalComponent(
 
 export function getInstanceFromNode(node: HTMLElement): null | Object {
   return getClosestInstanceFromNode(node) || null;
+}
+
+export function registerEvent(
+  event: ReactDOMListenerEvent,
+  rootContainerInstance: Container,
+): void {
+  const {passive, priority, type} = event;
+  const listenerMap = getListenerMapForElement(rootContainerInstance);
+  // Add the event listener to the target container (falling back to
+  // the target if we didn't find one).
+  listenToTopLevelEvent(
+    ((type: any): DOMTopLevelEventType),
+    rootContainerInstance,
+    listenerMap,
+    passive,
+    priority,
+  );
+}
+
+export function mountEventListener(listener: ReactDOMListener): void {
+  if (enableUseEventAPI) {
+    const {target} = listener;
+    if (target === window) {
+      // TODO (useEvent)
+    } else if (isDOMDocument(target)) {
+      // TODO (useEvent)
+    } else if (isDOMElement(target)) {
+      attachElementListener(listener);
+    }
+  }
+}
+
+export function unmountEventListener(listener: ReactDOMListener): void {
+  if (enableUseEventAPI) {
+    const {target} = listener;
+    if (target === window) {
+      // TODO (useEvent)
+    } else if (isDOMDocument(target)) {
+      // TODO (useEvent)
+    } else if (isDOMElement(target)) {
+      detachElementListener(listener);
+    }
+  }
+}
+
+export function validateEventListenerTarget(
+  target: EventTarget,
+  listener: ?(Event) => void,
+): boolean {
+  if (enableUseEventAPI) {
+    if (
+      target != null &&
+      (target === window ||
+        isDOMDocument(target) ||
+        (isDOMElement(target) &&
+          getClosestInstanceFromNode(((target: any): Element))))
+    ) {
+      if (listener == null || typeof listener === 'function') {
+        return true;
+      }
+      if (__DEV__) {
+        console.warn(
+          'Event listener method setListener() from useEvent() hook requires the second argument' +
+            ' to be either a valid function callback or null/undefined.',
+        );
+      }
+    }
+    if (__DEV__) {
+      console.warn(
+        'Event listener method setListener() from useEvent() hook requires the first argument to be either:' +
+          '\n\n' +
+          '1. A valid DOM node that was rendered and managed by React\n' +
+          '2. The "window" object\n' +
+          '3. The "document" object',
+      );
+    }
+  }
+  return false;
 }

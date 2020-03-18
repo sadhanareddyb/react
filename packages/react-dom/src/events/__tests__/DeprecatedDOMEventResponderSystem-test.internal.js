@@ -66,6 +66,11 @@ function dispatchClickEvent(element) {
 describe('DOMEventResponderSystem', () => {
   let container;
 
+  if (!__EXPERIMENTAL__) {
+    it("empty test so Jest doesn't complain", () => {});
+    return;
+  }
+
   beforeEach(() => {
     jest.resetModules();
     ReactFeatureFlags = require('shared/ReactFeatureFlags');
@@ -177,11 +182,10 @@ describe('DOMEventResponderSystem', () => {
     dispatchClickEvent(buttonElement);
     expect(eventResponderFiredCount).toBe(1);
     expect(eventLog.length).toBe(1);
-    // JSDOM does not support passive events, so this will be false
     expect(eventLog).toEqual([
       {
         name: 'click',
-        passive: false,
+        passive: true,
         phase: 'bubble',
       },
     ]);
@@ -284,11 +288,10 @@ describe('DOMEventResponderSystem', () => {
     dispatchClickEvent(buttonElement);
     expect(eventResponderFiredCount).toBe(1);
     expect(eventLog.length).toBe(1);
-    // JSDOM does not support passive events, so this will be false
     expect(eventLog).toEqual([
       {
         name: 'click',
-        passive: false,
+        passive: true,
         phase: 'bubble',
       },
     ]);
@@ -318,7 +321,7 @@ describe('DOMEventResponderSystem', () => {
     expect(eventLog).toEqual([
       {
         name: 'click',
-        passive: false,
+        passive: true,
         phase: 'bubble',
       },
     ]);
@@ -944,5 +947,40 @@ describe('DOMEventResponderSystem', () => {
     dispatchClickEvent(buttonRef.current);
     document.body.removeChild(domNode);
     expect(onEvent).toBeCalled();
+  });
+
+  it('event upgrading should work correctly', () => {
+    let eventResponderFiredCount = 0;
+    const buttonRef = React.createRef();
+
+    const TestResponder = createEventResponder({
+      targetEventTypes: ['click'],
+      onEvent: (event, context, props, state) => {
+        eventResponderFiredCount++;
+        if (!state.addedRootEventTypes) {
+          context.addRootEventTypes(['click_active']);
+        }
+        state.addedRootEventTypes = true;
+      },
+    });
+
+    function Test() {
+      const listener = React.DEPRECATED_useResponder(TestResponder, {});
+
+      return (
+        <button ref={buttonRef} DEPRECATED_flareListeners={listener}>
+          Click me!
+        </button>
+      );
+    }
+
+    ReactDOM.render(<Test />, container);
+    expect(container.innerHTML).toBe('<button>Click me!</button>');
+
+    let buttonElement = buttonRef.current;
+    dispatchClickEvent(buttonElement);
+    expect(eventResponderFiredCount).toBe(1);
+    dispatchClickEvent(buttonElement);
+    expect(eventResponderFiredCount).toBe(2);
   });
 });

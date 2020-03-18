@@ -12,7 +12,8 @@
 import '@reach/menu-button/styles.css';
 import '@reach/tooltip/styles.css';
 
-import React, {useEffect, useMemo, useState} from 'react';
+import * as React from 'react';
+import {useEffect, useMemo, useRef} from 'react';
 import Store from '../store';
 import {BridgeContext, ContextMenuContext, StoreContext} from './context';
 import Components from './Components/Components';
@@ -26,6 +27,7 @@ import {ModalDialogContextController} from './ModalDialog';
 import ReactLogo from './ReactLogo';
 import UnsupportedVersionDialog from './UnsupportedVersionDialog';
 import WarnIfLegacyBackendDetected from './WarnIfLegacyBackendDetected';
+import {useLocalStorage} from './hooks';
 
 import styles from './DevTools.css';
 
@@ -105,9 +107,13 @@ export default function DevTools({
   viewAttributeSourceFunction,
   viewElementSourceFunction,
 }: Props) {
-  const [tab, setTab] = useState(defaultTab);
-  if (overrideTab != null && overrideTab !== tab) {
-    setTab(overrideTab);
+  let [tab, setTab] = useLocalStorage<TabID>(
+    'React::DevTools::defaultTab',
+    defaultTab,
+  );
+
+  if (overrideTab != null) {
+    tab = overrideTab;
   }
 
   const viewElementSource = useMemo(
@@ -126,18 +132,50 @@ export default function DevTools({
     [enabledInspectedElementContextMenu, viewAttributeSourceFunction],
   );
 
-  useEffect(
-    () => {
-      return () => {
-        try {
-          bridge.shutdown();
-        } catch (error) {
-          // Attempting to use a disconnected port.
+  const devToolsRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!showTabBar) {
+      return;
+    }
+
+    const div = devToolsRef.current;
+    if (div === null) {
+      return;
+    }
+
+    const ownerWindow = div.ownerDocument.defaultView;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case '1':
+            setTab(tabs[0].id);
+            event.preventDefault();
+            event.stopPropagation();
+            break;
+          case '2':
+            setTab(tabs[1].id);
+            event.preventDefault();
+            event.stopPropagation();
+            break;
         }
-      };
-    },
-    [bridge],
-  );
+      }
+    };
+    ownerWindow.addEventListener('keydown', handleKeyDown);
+    return () => {
+      ownerWindow.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showTabBar]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        bridge.shutdown();
+      } catch (error) {
+        // Attempting to use a disconnected port.
+      }
+    };
+  }, [bridge]);
 
   return (
     <BridgeContext.Provider value={bridge}>
@@ -151,7 +189,7 @@ export default function DevTools({
               <ViewElementSourceContext.Provider value={viewElementSource}>
                 <TreeContextController>
                   <ProfilerContextController>
-                    <div className={styles.DevTools}>
+                    <div className={styles.DevTools} ref={devToolsRef}>
                       {showTabBar && (
                         <div className={styles.TabBar}>
                           <ReactLogo />
