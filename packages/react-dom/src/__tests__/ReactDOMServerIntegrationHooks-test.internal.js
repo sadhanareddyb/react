@@ -503,6 +503,9 @@ describe('ReactDOMServerHooks', () => {
           return <span>Count: {ref.current}</span>;
         }
 
+        // Reading from ref during render (after a mutation) triggers a warning.
+        spyOnDev(console, 'warn');
+
         const domNode = await render(<Counter />);
         expect(clearYields()).toEqual([0, 1, 2, 3]);
         expect(domNode.textContent).toEqual('Count: 3');

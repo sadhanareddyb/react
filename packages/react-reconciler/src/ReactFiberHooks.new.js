@@ -37,6 +37,7 @@ import {NoWork, Sync} from './ReactFiberExpirationTime';
 import {NoMode, BlockingMode} from './ReactTypeOfMode';
 import {readContext} from './ReactFiberNewContext.new';
 import {createDeprecatedResponderListener} from './ReactFiberDeprecatedEvents.new';
+import {getStackByFiberInDevAndProd} from './ReactFiberComponentStack';
 import {
   Update as UpdateEffect,
   Passive as PassiveEffect,
@@ -1184,12 +1185,39 @@ function pushEffect(tag, create, destroy, deps) {
 
 function mountRef<T>(initialValue: T): {|current: T|} {
   const hook = mountWorkInProgressHook();
-  const ref = {current: initialValue};
   if (__DEV__) {
+    const fiber = currentlyRenderingFiber;
+    let current = initialValue;
+    let shouldWarnAboutRead = false;
+    const ref = {
+      get current() {
+        if (shouldWarnAboutRead && currentlyRenderingFiber !== null) {
+          console.warn(
+            '%s: Unsafe read of a mutable value during render.\n\n' +
+              'Reading from a ref during render is only safe if:\n' +
+              '1. The ref value has not been updated, or\n' +
+              '2. The ref holds a lazily-initialized value that is only set once.\n\n%s',
+            getComponentName(fiber.type) || 'Unknown',
+            getStackByFiberInDevAndProd(fiber),
+          );
+        }
+        return current;
+      },
+      set current(value) {
+        if (!shouldWarnAboutRead && current != null) {
+          shouldWarnAboutRead = true;
+        }
+        current = value;
+      },
+    };
     Object.seal(ref);
+    hook.memoizedState = ref;
+    return ref;
+  } else {
+    const ref = {current: initialValue};
+    hook.memoizedState = ref;
+    return ref;
   }
-  hook.memoizedState = ref;
-  return ref;
 }
 
 function updateRef<T>(initialValue: T): {|current: T|} {

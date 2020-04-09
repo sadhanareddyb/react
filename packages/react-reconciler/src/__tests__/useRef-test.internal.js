@@ -19,6 +19,7 @@ describe('useRef', () => {
   let act;
   let useCallback;
   let useEffect;
+  let useLayoutEffect;
   let useRef;
   let useState;
 
@@ -33,6 +34,7 @@ describe('useRef', () => {
     act = ReactNoop.act;
     useCallback = React.useCallback;
     useEffect = React.useEffect;
+    useLayoutEffect = React.useLayoutEffect;
     useRef = React.useRef;
     useState = React.useState;
   });
@@ -124,4 +126,142 @@ describe('useRef', () => {
     ReactNoop.render(<Counter />);
     expect(Scheduler).toFlushAndYield(['val']);
   });
+
+  if (__DEV__) {
+    it('should not warn about reads if value is not mutated', () => {
+      function Example() {
+        const ref = useRef(123);
+        return ref.current;
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+    });
+
+    it('should warn about reads during render phase if value has been mutated', () => {
+      function Example() {
+        const ref = useRef(123);
+        ref.current = 456;
+
+        let value;
+        expect(() => {
+          value = ref.current;
+        }).toWarnDev([
+          'Example: Unsafe read of a mutable value during render.',
+        ]);
+
+        return value;
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+    });
+
+    it('should not warn about lazy init during render', () => {
+      function Example() {
+        const ref1 = useRef(null);
+        const ref2 = useRef();
+        if (ref1.current === null) {
+          // Read 1: safe because null
+          ref1.current = 123;
+          ref2.current = 123;
+        }
+        return ref1.current + ref2.current; // Read 2: safe because lazy init
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+    });
+
+    it('should not warn about lazy init outside of render', () => {
+      function Example() {
+        // eslint-disable-next-line no-unused-vars
+        const [didMount, setDidMount] = useState(false);
+        const ref1 = useRef(null);
+        const ref2 = useRef();
+        useLayoutEffect(() => {
+          ref1.current = 123;
+          ref2.current = 123;
+          setDidMount(true);
+        }, []);
+        return ref1.current + ref2.current; // Read 2: safe because lazy init
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+    });
+
+    it('should warn about updates to ref after lazy init pattern', () => {
+      function Example() {
+        const ref1 = useRef(null);
+        const ref2 = useRef();
+        if (ref1.current === null) {
+          // Read 1: safe because null
+          ref1.current = 123;
+          ref2.current = 123;
+        }
+        expect(ref1.current).toBe(123); // Read 2: safe because lazy init
+        expect(ref2.current).toBe(123); // Read 2: safe because lazy init
+
+        ref1.current = 456; // Second mutation, now reads will be unsafe
+        ref2.current = 456; // Second mutation, now reads will be unsafe
+
+        expect(() => {
+          expect(ref1.current).toBe(456); // Read 3: unsafe because mutation
+        }).toWarnDev([
+          'Example: Unsafe read of a mutable value during render.',
+        ]);
+        expect(() => {
+          expect(ref2.current).toBe(456); // Read 3: unsafe because mutation
+        }).toWarnDev([
+          'Example: Unsafe read of a mutable value during render.',
+        ]);
+
+        return null;
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+    });
+
+    it('should not warn about reads within effect', () => {
+      function Example() {
+        const ref = useRef(123);
+        ref.current = 456;
+        useLayoutEffect(() => {
+          expect(ref.current).toBe(456);
+        }, []);
+        useEffect(() => {
+          expect(ref.current).toBe(456);
+        }, []);
+        return null;
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+
+      ReactNoop.flushPassiveEffects();
+    });
+
+    it('should not warn about reads outside of render phase (e.g. event handler)', () => {
+      let ref;
+      function Example() {
+        ref = useRef(123);
+        ref.current = 456;
+        return null;
+      }
+
+      act(() => {
+        ReactNoop.render(<Example />);
+      });
+
+      expect(ref.current).toBe(456);
+    });
+  }
 });
