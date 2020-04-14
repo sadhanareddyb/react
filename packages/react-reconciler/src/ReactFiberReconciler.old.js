@@ -88,6 +88,11 @@ import {
 
 export {createPortal} from './ReactPortal';
 export {
+  createComponentSelector,
+  createHasPsuedoClassSelector,
+  createRoleSelector,
+  createTestNameSelector,
+  createTextSelector,
   getFindAllNodesFailureDescription,
   findAllNodes,
   findBoundingRects,
