@@ -91,6 +91,20 @@ export const makeClientIdInDEV = $$$hostConfig.makeClientIdInDEV;
 export const makeServerId = $$$hostConfig.makeServerId;
 
 // -------------------
+//      Test selectors
+//     (optional)
+// -------------------
+export const supportsTestSelectors = $$$hostConfig.supportsTestSelectors;
+export const findRootFiber = $$$hostConfig.findRootFiber;
+export const getBoundingRect = $$$hostConfig.getBoundingRect;
+export const getTextContent = $$$hostConfig.getTextContent;
+export const isHiddenSubtree = $$$hostConfig.isHiddenSubtree;
+export const matchAccessibilityRole = $$$hostConfig.matchAccessibilityRole;
+export const setFocusIfFocusable = $$$hostConfig.setFocusIfFocusable;
+export const setupIntersectionObserver =
+  $$$hostConfig.setupIntersectionObserver;
+
+// -------------------
 //      Mutation
 //     (optional)
 // -------------------

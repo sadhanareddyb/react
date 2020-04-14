@@ -189,7 +189,8 @@ import {
   hasCaughtError,
   clearCaughtError,
 } from 'shared/ReactErrorUtils';
-import {onCommitRoot} from './ReactFiberDevToolsHook.new';
+import {onCommitRoot as onCommitRootDevTools} from './ReactFiberDevToolsHook.new';
+import {onCommitRoot as onCommitRootTestSelector} from './ReactTestSelectors';
 
 // Used by `act`
 import enqueueTask from 'shared/enqueueTask';
@@ -2083,7 +2084,11 @@ function commitRootImpl(root, renderPriorityLevel) {
     nestedUpdateCount = 0;
   }
 
-  onCommitRoot(finishedWork.stateNode, expirationTime);
+  onCommitRootDevTools(finishedWork.stateNode, expirationTime);
+
+  if (__DEV__) {
+    onCommitRootTestSelector();
+  }
 
   // Always call this before exiting `commitRoot`, to ensure that any
   // additional work on this root is scheduled.
