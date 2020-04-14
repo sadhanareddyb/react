@@ -358,6 +358,6 @@
   "358": "Could not find React container within specified host subtree.",
   "359": "The current renderer does not support test selectors. This error is likely caused by a bug in React. Please file an issue.",
   "360": "Test selector API is not supported by this renderer.",
-  "361": "Could not find React container within specified host subtree.",
-  "362": "Invalid host root specified. Should be either a React container or a node previously returned by findAllNodes()."
+  "361": "Invalid host root specified. Should be either a React container or a node with a testname attribute.",
+  "362": "Invalid selector type %s specified"
 }
