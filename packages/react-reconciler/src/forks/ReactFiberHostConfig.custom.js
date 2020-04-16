@@ -95,7 +95,7 @@ export const makeServerId = $$$hostConfig.makeServerId;
 //     (optional)
 // -------------------
 export const supportsTestSelectors = $$$hostConfig.supportsTestSelectors;
-export const findRootFiber = $$$hostConfig.findRootFiber;
+export const findFiberRoot = $$$hostConfig.findFiberRoot;
 export const getBoundingRect = $$$hostConfig.getBoundingRect;
 export const getTextContent = $$$hostConfig.getTextContent;
 export const isHiddenSubtree = $$$hostConfig.isHiddenSubtree;

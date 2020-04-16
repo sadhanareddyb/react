@@ -354,10 +354,8 @@
   "354": "getInspectorDataForViewAtPoint() is not available in production.",
   "355": "The object passed back from useOpaqueIdentifier is meant to be passed through to attributes only. Do not read the value directly.",
   "356": "The current renderer does not support test selectors. This error is likely caused by a bug in React. Please file an issue.",
-  "357": "findAllNodes() is not supported by this renderer.",
-  "358": "Could not find React container within specified host subtree.",
-  "359": "The current renderer does not support test selectors. This error is likely caused by a bug in React. Please file an issue.",
-  "360": "Test selector API is not supported by this renderer.",
-  "361": "Invalid host root specified. Should be either a React container or a node with a testname attribute.",
-  "362": "Invalid selector type %s specified"
+  "357": "Could not find React container within specified host subtree.",
+  "358": "Test selector API is not supported by this renderer.",
+  "359": "Invalid host root specified. Should be either a React container or a node with a testname attribute.",
+  "360": "Invalid selector type %s specified."
 }

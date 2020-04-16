@@ -1257,7 +1257,7 @@ export function validateEventListenerTarget(
 
 export const supportsTestSelectors = true;
 
-export function findRootFiber(node: Instance): null | FiberRoot {
+export function findFiberRoot(node: Instance): null | FiberRoot {
   const stack = [node];
   let index = 0;
   while (index < stack.length) {
@@ -1280,12 +1280,9 @@ export function getBoundingRect(node: Instance): BoundingRect {
   };
 }
 
-export function matchAccessibilityRole(fiber: Fiber, role: string): boolean {
-  if (fiber.tag === HostComponent) {
-    const node = fiber.stateNode;
-    if (role === getRole(node)) {
-      return true;
-    }
+export function matchAccessibilityRole(node: Instance, role: string): boolean {
+  if (role === getRole(node)) {
+    return true;
   }
 
   return false;
@@ -1310,8 +1307,8 @@ export function getTextContent(fiber: Fiber): string | null {
   return null;
 }
 
-export function isHiddenSubtree(workInProgress: Fiber): boolean {
-  return workInProgress.pendingProps.hidden === true;
+export function isHiddenSubtree(fiber: Fiber): boolean {
+  return fiber.tag === HostComponent && fiber.memoizedProps.hidden === true;
 }
 
 export function setFocusIfFocusable(node: Instance): boolean {
